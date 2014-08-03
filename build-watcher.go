@@ -2,6 +2,7 @@ package main
 
 import (
     "encoding/json"
+    "regexp"
     "flag"
     "log"
     "strings"
@@ -15,7 +16,7 @@ type Configuration struct {
     Botname string
     Botaddress string
     Botport string
-    Ircchan string
+    Chanprefix string
     Authpass string
     Watchdir string
 }
@@ -26,7 +27,7 @@ func setupFlags() {
     flag.StringVar(&conf.Botname,    "Botname", conf.Botname, "irc bot name")
     flag.StringVar(&conf.Botaddress, "Botaddress", conf.Botaddress,"address where ircflu cat server is")
     flag.StringVar(&conf.Botport,    "Botport", conf.Botport, "port where ircflu cat server is")
-    flag.StringVar(&conf.Ircchan,    "Ircchan", conf.Ircchan, "channel to join after authing the bot")
+    flag.StringVar(&conf.Chanprefix, "Chanprefix", conf.Chanprefix, "channel to join after authing the bot")
     flag.StringVar(&conf.Authpass,   "Authpass", conf.Authpass, "password to auth the bot")
     flag.StringVar(&conf.Watchdir,   "Watchdir", conf.Watchdir, "directory to watch for build files")
 }
@@ -56,7 +57,7 @@ func WriteToIrcBot(message string) {
     conn.Close()
 }
 
-func main() {
+func parseConfig() {
     file, _ := os.Open("conf.json")
     decoder := json.NewDecoder(file)
 
@@ -64,21 +65,19 @@ func main() {
     if err != nil {
        println("error:", err)
     }
-    // parse out flags
+}
+
+func main() {
+    // get settings from config file
+    parseConfig()
+
+    // parse out any flags and override
     setupFlags()
     flag.Parse()
 
-    println(conf.Botname)
-    println(conf.Botport)
-    println(conf.Ircchan)
-    println(conf.Authpass)
-    println(conf.Watchdir)
-    println(conf.Botaddress)
-
-
     // a few arguments don't have defaults
-    if conf.Ircchan == "" {
-        println("Must supply ircchan argument")
+    if conf.Chanprefix == "" {
+        println("Must supply Chanprefix argument")
         os.Exit(1);
     }
 
@@ -102,6 +101,17 @@ func main() {
                 // See if a new file is created with build- in the name
                 if strings.Contains(ev.Name,"build-") && ev.IsCreate() {
                     log.Println("New File -> ", ev.Name)
+                    re, _ := regexp.Compile(`.*build-(.*)\.txt`)
+                    res := re.FindStringSubmatch(ev.Name)
+                    if res == nil {
+                        log.Println("No match to build-*.txt")
+                        return
+                    }
+                    buildid := res[1]
+                    log.Println("Build ID -> ", buildid)
+                    buildchan := conf.Chanprefix + buildid
+                    log.Println("Creating channel at -> ", buildchan)
+
                     // 'fork' a new tail watcher for this build file
                     go func() {
                         t, err := tail.TailFile(ev.Name, tail.Config{Follow: true})
@@ -110,10 +120,12 @@ func main() {
                         }
 
                         WriteToIrcBot("@" + conf.Botname + " !auth " + conf.Authpass)
-                        WriteToIrcBot("@" + conf.Botname + " !join #" + conf.Ircchan)
+                        WriteToIrcBot("@" + conf.Botname + " !join " + buildchan)
+
+                        WriteToIrcBot("Work started - follow in channel: " + buildchan)
 
                         for line := range t.Lines {
-                            WriteToIrcBot("#" + conf.Ircchan + " " + line.Text)
+                            WriteToIrcBot(buildchan + " " + line.Text)
                             log.Println(line.Text)
                         }
                     }()

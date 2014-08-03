@@ -1,8 +1,8 @@
 {
+    "Botname": "deploybot",
     "Botaddress": "localhost",
     "Botport": "12345",
-    "Ircchan": "#testchan",
+    "Chanprefix": "#work-",
     "Authpass": "password",
-    "Watchdir": "/",
-    "Botname": "bot"
+    "Watchdir": "/tmp"
 }
