@@ -1,6 +1,7 @@
 package main
 
 import (
+    "encoding/json"
     "flag"
     "log"
     "strings"
@@ -10,26 +11,29 @@ import (
     "github.com/ActiveState/tail"
 )
 
-var botname string
-var botaddress string
-var botport string
-var ircchan string
-var authpass string
-var watchdir string
+type Configuration struct {
+    Botname string
+    Botaddress string
+    Botport string
+    Ircchan string
+    Authpass string
+    Watchdir string
+}
 
-func init() {
-    flag.StringVar(&botname,    "ircbot", "ircflu", "irc bot name")
-    flag.StringVar(&botaddress, "botaddress", "localhost", "address where ircflu cat server is")
-    flag.StringVar(&botport,    "botport", "12345", "port where ircflu cat server is")
-    flag.StringVar(&ircchan,    "ircchan", "", "channel to join after authing the bot")
-    flag.StringVar(&authpass,   "authpass", "", "password to auth the bot")
-    flag.StringVar(&watchdir,   "watchdir", "/tmp", "directory to watch for build files")
+var conf Configuration
 
+func setupFlags() {
+    flag.StringVar(&conf.Botname,    "Botname", conf.Botname, "irc bot name")
+    flag.StringVar(&conf.Botaddress, "Botaddress", conf.Botaddress,"address where ircflu cat server is")
+    flag.StringVar(&conf.Botport,    "Botport", conf.Botport, "port where ircflu cat server is")
+    flag.StringVar(&conf.Ircchan,    "Ircchan", conf.Ircchan, "channel to join after authing the bot")
+    flag.StringVar(&conf.Authpass,   "Authpass", conf.Authpass, "password to auth the bot")
+    flag.StringVar(&conf.Watchdir,   "Watchdir", conf.Watchdir, "directory to watch for build files")
 }
 
 func WriteToIrcBot(message string) {
     strEcho := message + "\n"
-    servAddr := botaddress + ":" + botport
+    servAddr := conf.Botaddress + ":" + conf.Botport
     tcpAddr, err := net.ResolveTCPAddr("tcp", servAddr)
 
     if err != nil {
@@ -53,16 +57,32 @@ func WriteToIrcBot(message string) {
 }
 
 func main() {
+    file, _ := os.Open("conf.json")
+    decoder := json.NewDecoder(file)
+
+    err := decoder.Decode(&conf)
+    if err != nil {
+       println("error:", err)
+    }
     // parse out flags
+    setupFlags()
     flag.Parse()
 
+    println(conf.Botname)
+    println(conf.Botport)
+    println(conf.Ircchan)
+    println(conf.Authpass)
+    println(conf.Watchdir)
+    println(conf.Botaddress)
+
+
     // a few arguments don't have defaults
-    if ircchan == "" {
+    if conf.Ircchan == "" {
         println("Must supply ircchan argument")
         os.Exit(1);
     }
 
-    if authpass == "" {
+    if conf.Authpass == "" {
         println("Must supply authpass argument")
         os.Exit(1);
     }
@@ -89,11 +109,11 @@ func main() {
                             return
                         }
 
-                        WriteToIrcBot("@" + botname + " !auth " + authpass)
-                        WriteToIrcBot("@" + botname + " !join #" + ircchan)
+                        WriteToIrcBot("@" + conf.Botname + " !auth " + conf.Authpass)
+                        WriteToIrcBot("@" + conf.Botname + " !join #" + conf.Ircchan)
 
                         for line := range t.Lines {
-                            WriteToIrcBot("#" + ircchan + " " + line.Text)
+                            WriteToIrcBot("#" + conf.Ircchan + " " + line.Text)
                             log.Println(line.Text)
                         }
                     }()
@@ -104,7 +124,7 @@ func main() {
         }
     }()
 
-    err = watcher.Watch(watchdir)
+    err = watcher.Watch(conf.Watchdir)
     if err != nil {
         log.Fatal(err)
     }
