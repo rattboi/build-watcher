@@ -1,6 +1,7 @@
 package main
 
 import (
+//    "fmt"
     "encoding/json"
     "regexp"
     "flag"
@@ -21,9 +22,16 @@ type Configuration struct {
     Watchdir string
 }
 
-var conf Configuration
+func setConfigDefaults(conf *Configuration) {
+    conf.Botname = "deploybot"
+    conf.Botaddress = "localhost"
+    conf.Botport = "12345" //default for ircflu
+    conf.Chanprefix = "#work-"
+    conf.Authpass = "password"
+    conf.Watchdir = "/tmp"
+}
 
-func setupFlags() {
+func setupFlags(conf *Configuration) {
     flag.StringVar(&conf.Botname,    "Botname", conf.Botname, "irc bot name")
     flag.StringVar(&conf.Botaddress, "Botaddress", conf.Botaddress,"address where ircflu cat server is")
     flag.StringVar(&conf.Botport,    "Botport", conf.Botport, "port where ircflu cat server is")
@@ -32,59 +40,59 @@ func setupFlags() {
     flag.StringVar(&conf.Watchdir,   "Watchdir", conf.Watchdir, "directory to watch for build files")
 }
 
-func WriteToIrcBot(message string) {
+func parseConfig(conf *Configuration) {
+    file, err := os.Open("conf.json")
+    if err != nil {
+        // assumes no config file. Not an error. Probably should further parse to verify...
+        return
+    }
+
+    decoder := json.NewDecoder(file)
+    err = decoder.Decode(&conf)
+    if err != nil {
+        log.Fatal(err)
+    }
+}
+
+func WriteToIrcBot(message string, conf Configuration) {
     strEcho := message + "\n"
     servAddr := conf.Botaddress + ":" + conf.Botport
     tcpAddr, err := net.ResolveTCPAddr("tcp", servAddr)
 
     if err != nil {
-        println("ResolveTCPAddr failed:", err.Error())
-        os.Exit(1)
+        log.Println("ResolveTCPAddr failed:", err.Error())
     }
 
     conn, err := net.DialTCP("tcp", nil, tcpAddr)
+    defer conn.Close()
+
     if err != nil {
-        println("Dial failed:", err.Error())
-        os.Exit(1)
+        log.Println("Dial failed:", err.Error())
+        return
     }
 
     _, err = conn.Write([]byte(strEcho))
 
     if err != nil {
-        println("Write to server failed:", err.Error())
+        log.Println("Write to server failed:", err.Error())
         return
-    }
-    conn.Close()
-}
-
-func parseConfig() {
-    file, _ := os.Open("conf.json")
-    decoder := json.NewDecoder(file)
-
-    err := decoder.Decode(&conf)
-    if err != nil {
-       println("error:", err)
     }
 }
 
 func main() {
-    // get settings from config file
-    parseConfig()
+    var conf Configuration
 
-    // parse out any flags and override
-    setupFlags()
+    // set some dumb defaults
+    setConfigDefaults(&conf)
+
+    // get settings from config file if it exists and override defaults
+    parseConfig(&conf)
+
+    // parse out any flags and override defaults/config
+    setupFlags(&conf)
     flag.Parse()
 
-    // a few arguments don't have defaults
-    if conf.Chanprefix == "" {
-        println("Must supply Chanprefix argument")
-        os.Exit(1);
-    }
-
-    if conf.Authpass == "" {
-        println("Must supply authpass argument")
-        os.Exit(1);
-    }
+//    fmt.Printf("%+v\n", conf)
 
     watcher, err := fsnotify.NewWatcher()
     if err != nil {
@@ -119,13 +127,13 @@ func main() {
                             return
                         }
 
-                        WriteToIrcBot("@" + conf.Botname + " !auth " + conf.Authpass)
-                        WriteToIrcBot("@" + conf.Botname + " !join " + buildchan)
+                        WriteToIrcBot("@" + conf.Botname + " !auth " + conf.Authpass, conf)
+                        WriteToIrcBot("@" + conf.Botname + " !join " + buildchan, conf)
 
-                        WriteToIrcBot("Work started - follow in channel: " + buildchan)
+                        WriteToIrcBot("Work started - follow in channel: " + buildchan, conf)
 
                         for line := range t.Lines {
-                            WriteToIrcBot(buildchan + " " + line.Text)
+                            WriteToIrcBot(buildchan + " " + line.Text, conf)
                             log.Println(line.Text)
                         }
                     }()
@@ -143,6 +151,5 @@ func main() {
 
     <-done
 
-    /* ... do stuff ... */
     watcher.Close()
 }
