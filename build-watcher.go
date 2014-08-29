@@ -109,10 +109,10 @@ func main() {
                 // See if a new file is created with build- in the name
                 if strings.Contains(ev.Name,"build-") && ev.IsCreate() {
                     log.Println("New File -> ", ev.Name)
-                    re, _ := regexp.Compile(`.*build-(.*)\.txt`)
+                    re, _ := regexp.Compile(`.*build-(.*)\.log`)
                     res := re.FindStringSubmatch(ev.Name)
                     if res == nil {
-                        log.Println("No match to build-*.txt")
+                        log.Println("No match to build-*.log")
                         return
                     }
                     buildid := res[1]
