@@ -17,27 +17,27 @@ type Configuration struct {
     Botname string
     Botaddress string
     Botport string
-    Chanprefix string
     Authpass string
     Watchdir string
+    Filepattern string
 }
 
 func setConfigDefaults(conf *Configuration) {
     conf.Botname = "deploybot"
     conf.Botaddress = "localhost"
     conf.Botport = "12345" //default for ircflu
-    conf.Chanprefix = "#work-"
     conf.Authpass = "password"
     conf.Watchdir = "/tmp"
+    conf.Filepattern = `.*build-(.*)\.log`
 }
 
 func setupFlags(conf *Configuration) {
     flag.StringVar(&conf.Botname,    "Botname", conf.Botname, "irc bot name")
     flag.StringVar(&conf.Botaddress, "Botaddress", conf.Botaddress,"address where ircflu cat server is")
     flag.StringVar(&conf.Botport,    "Botport", conf.Botport, "port where ircflu cat server is")
-    flag.StringVar(&conf.Chanprefix, "Chanprefix", conf.Chanprefix, "channel to join after authing the bot")
     flag.StringVar(&conf.Authpass,   "Authpass", conf.Authpass, "password to auth the bot")
     flag.StringVar(&conf.Watchdir,   "Watchdir", conf.Watchdir, "directory to watch for build files")
+    flag.StringVar(&conf.Filepattern,"Filepattern", conf.Filepattern, "regular expression pattern for files to watch")
 }
 
 func parseConfig(conf *Configuration) {
@@ -109,16 +109,14 @@ func main() {
                 // See if a new file is created with build- in the name
                 if strings.Contains(ev.Name,"build-") && ev.IsCreate() {
                     log.Println("New File -> ", ev.Name)
-                    re, _ := regexp.Compile(`.*build-(.*)\.log`)
+                    re, _ := regexp.Compile(conf.Filepattern)
                     res := re.FindStringSubmatch(ev.Name)
                     if res == nil {
-                        log.Println("No match to build-*.log")
+                        log.Println("No match to " + conf.Filepattern)
                         return
                     }
                     buildid := res[1]
                     log.Println("Build ID -> ", buildid)
-                    buildchan := conf.Chanprefix + buildid
-                    log.Println("Creating channel at -> ", buildchan)
 
                     // 'fork' a new tail watcher for this build file
                     go func() {
@@ -127,14 +125,43 @@ func main() {
                             return
                         }
 
-                        WriteToIrcBot("@" + conf.Botname + " !auth " + conf.Authpass, conf)
-                        WriteToIrcBot("@" + conf.Botname + " !join " + buildchan, conf)
+                        WriteToIrcBot("Work started - build: " + buildid , conf)
 
-                        WriteToIrcBot("Work started - follow in channel: " + buildchan, conf)
+                        uuid_re, _ := regexp.Compile(`.*Build Result UUID: (.*)`)
+                        requestor_re, _ := regexp.Compile(`.*Requestor ID: (.*)`)
+                        enghost_re, _ := regexp.Compile(`.*Build Engine Host: (.*)`)
+                        engid_re, _ := regexp.Compile(`.*Build Engine ID: (.*)`)
+                        builddef_re, _ := regexp.Compile(`.*Build Definition: (.*)`)
+                        projects_re, _ := regexp.Compile(`.*Project Names: (.*)`)
 
+                        uuid, requestor, enghost, engid, builddef, projects := "","","","","",""
+
+                        summary_block := false
                         for line := range t.Lines {
-                            WriteToIrcBot(buildchan + " " + line.Text, conf)
-                            log.Println(line.Text)
+                            if strings.Contains(line.Text, "-- START BUILD INFO --") { summary_block = true  }
+
+                            if summary_block == true {
+                                res := uuid_re.FindStringSubmatch(line.Text)
+                                if res != nil { uuid = res[1] }
+                                res = requestor_re.FindStringSubmatch(line.Text)
+                                if res != nil { requestor = res[1] }
+                                res = enghost_re.FindStringSubmatch(line.Text)
+                                if res != nil { enghost = res[1] }
+                                res = engid_re.FindStringSubmatch(line.Text)
+                                if res != nil { engid = res[1] }
+                                res = builddef_re.FindStringSubmatch(line.Text)
+                                if res != nil { builddef = res[1] }
+                                res = projects_re.FindStringSubmatch(line.Text)
+                                if res != nil { projects = res[1] }
+
+                                log.Println(buildid + ": " + line.Text)
+                            }
+                            if uuid != "" && requestor != "" && enghost != "" && engid != "" && builddef != "" && projects != "" && summary_block == true {
+                                WriteToIrcBot("UUID: " + uuid + ",    Req: " + requestor + ",     Eng: " + enghost + ":" + engid + ",     Def: " + builddef + ",    Project: " + projects, conf)
+                                summary_block = false
+                            }
+
+                            if strings.Contains(line.Text, "-- END BUILD INFO --")   { summary_block = false }
                         }
                     }()
                 }
