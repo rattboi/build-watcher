@@ -1,11 +1,9 @@
 package main
 
 import (
-	"flag"
 	"log"
 	"net"
 	"regexp"
-	"strings"
 
 	"github.com/ActiveState/tail"
 	"github.com/howeyc/fsnotify"
@@ -37,27 +35,27 @@ func WriteToIrcBot(message string, conf Configuration) {
 	}
 }
 
+func isLogFile(filename string, conf Configuration) bool {
+	log.Println("New File -> ", filename)
+	re, _ := regexp.Compile(conf.Filepattern)
+	res := re.FindStringSubmatch(filename)
+	if res == nil {
+		log.Println("No match to " + conf.Filepattern)
+		return false
+	}
+	return true
+}
+
 func main() {
 	var conf Configuration
-
 	// set some dumb defaults
 	setConfigDefaults(&conf)
-
 	// get settings from config file if it exists and override defaults
 	parseConfig(&conf)
-
 	// parse out any flags and override defaults/config
 	setupFlags(&conf)
-	flag.Parse()
 
-	//    fmt.Printf("%+v\n", conf)
-	states := map[int]func(string, Configuration, BuildInfo) int{
-		Init:       Init_State,
-		Start_Summ: Start_Summ_State,
-		End_Summ:   End_Summ_State,
-		Main_Log:   Main_Log_State,
-		End_Log:    End_Log_State,
-	}
+	states := initStates()
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -71,18 +69,8 @@ func main() {
 		for {
 			select {
 			case ev := <-watcher.Event:
-				// See if a new file is created with build- in the name
-				if strings.Contains(ev.Name, "build-") && ev.IsCreate() {
-					log.Println("New File -> ", ev.Name)
-					re, _ := regexp.Compile(conf.Filepattern)
-					res := re.FindStringSubmatch(ev.Name)
-					if res == nil {
-						log.Println("No match to " + conf.Filepattern)
-						return
-					}
-					buildid := res[1]
-					log.Println("Build ID -> ", buildid)
-
+				// See if a new file is created that matches our pattern
+				if isLogFile(ev.Name, conf) && ev.IsCreate() {
 					// 'fork' a new tail watcher for this build file
 					go func() {
 						t, err := tail.TailFile(ev.Name, tail.Config{Follow: true})

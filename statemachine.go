@@ -16,6 +16,16 @@ const (
 	Exit
 )
 
+func initStates() map[int]func(string, Configuration, BuildInfo) int {
+	return map[int]func(string, Configuration, BuildInfo) int{
+		Init:       Init_State,
+		Start_Summ: Start_Summ_State,
+		End_Summ:   End_Summ_State,
+		Main_Log:   Main_Log_State,
+		End_Log:    End_Log_State,
+	}
+}
+
 func Init_State(line string, conf Configuration, buildinfo BuildInfo) int {
 	if strings.Contains(line, "-- START BUILD INFO --") {
 		return Start_Summ
