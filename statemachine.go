@@ -1,4 +1,4 @@
-package buildwatcher
+package main
 
 import (
     "fmt"
