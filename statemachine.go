@@ -7,8 +7,10 @@ import (
 )
 
 // State Machine Stuff
+type State int
+
 const (
-	Init = iota
+	Init State = iota
 	Start_Summ
 	End_Summ
 	Main_Log
@@ -16,8 +18,8 @@ const (
 	Exit
 )
 
-func initStates() map[int]func(string, Configuration, BuildInfo) int {
-	return map[int]func(string, Configuration, BuildInfo) int{
+func initStates() map[State]func(string, Configuration, BuildInfo) State {
+	return map[State]func(string, Configuration, BuildInfo) State{
 		Init:       Init_State,
 		Start_Summ: Start_Summ_State,
 		End_Summ:   End_Summ_State,
@@ -26,7 +28,7 @@ func initStates() map[int]func(string, Configuration, BuildInfo) int {
 	}
 }
 
-func Init_State(line string, conf Configuration, buildinfo BuildInfo) int {
+func Init_State(line string, conf Configuration, buildinfo BuildInfo) State {
 	if strings.Contains(line, "-- START BUILD INFO --") {
 		return Start_Summ
 	} else {
@@ -34,7 +36,7 @@ func Init_State(line string, conf Configuration, buildinfo BuildInfo) int {
 	}
 }
 
-func Start_Summ_State(line string, conf Configuration, buildinfo BuildInfo) int {
+func Start_Summ_State(line string, conf Configuration, buildinfo BuildInfo) State {
 
 	var res []string
 
@@ -66,7 +68,7 @@ func formatBuildInfo(buildinfo BuildInfo, conf Configuration) {
 	WriteToIrcBot(builtLine, conf)
 }
 
-func End_Summ_State(line string, conf Configuration, buildinfo BuildInfo) int {
+func End_Summ_State(line string, conf Configuration, buildinfo BuildInfo) State {
 	if strings.Contains(line, "-- END BUILD INFO --") {
 		return Main_Log
 	} else {
@@ -74,7 +76,7 @@ func End_Summ_State(line string, conf Configuration, buildinfo BuildInfo) int {
 	}
 }
 
-func Main_Log_State(line string, conf Configuration, buildinfo BuildInfo) int {
+func Main_Log_State(line string, conf Configuration, buildinfo BuildInfo) State {
 	var builtLine string
 	var info = buildinfo.Matches
 	// Use HasPrefix instead of Contains in case of other exec'd ant jobs (like RTC tagging)
@@ -100,7 +102,7 @@ func formatBuildLogUrl(conf Configuration, build BuildInfo) string {
 	return builtLine
 }
 
-func End_Log_State(line string, conf Configuration, buildinfo BuildInfo) int {
+func End_Log_State(line string, conf Configuration, buildinfo BuildInfo) State {
 	log.Println("Logfile finished")
 	return Exit
 }
