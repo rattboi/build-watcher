@@ -1,7 +1,7 @@
 package main
 
 import (
-//    "fmt"
+    "fmt"
     "encoding/json"
     "regexp"
     "flag"
@@ -13,6 +13,7 @@ import (
     "github.com/ActiveState/tail"
 )
 
+// Config stuff
 type Configuration struct {
     Botname string
     Botaddress string
@@ -20,15 +21,18 @@ type Configuration struct {
     Authpass string
     Watchdir string
     Filepattern string
+    RTCBaseURL string
 }
 
+
 func setConfigDefaults(conf *Configuration) {
-    conf.Botname = "deploybot"
-    conf.Botaddress = "localhost"
-    conf.Botport = "12345" //default for ircflu
-    conf.Authpass = "password"
-    conf.Watchdir = "/tmp"
+    conf.Botname     = "deploybot"
+    conf.Botaddress  = "localhost"
+    conf.Botport     = "12345" //default for ircflu
+    conf.Authpass    = "password"
+    conf.Watchdir    = "/tmp"
     conf.Filepattern = `.*build-(.*)\.log`
+    conf.RTCBaseURL  = "http://baseurl:port/jazz"
 }
 
 func setupFlags(conf *Configuration) {
@@ -38,6 +42,7 @@ func setupFlags(conf *Configuration) {
     flag.StringVar(&conf.Authpass,   "Authpass", conf.Authpass, "password to auth the bot")
     flag.StringVar(&conf.Watchdir,   "Watchdir", conf.Watchdir, "directory to watch for build files")
     flag.StringVar(&conf.Filepattern,"Filepattern", conf.Filepattern, "regular expression pattern for files to watch")
+    flag.StringVar(&conf.RTCBaseURL, "RTCBaseURL", conf.RTCBaseURL, "base part of RTC server for build log linking")
 }
 
 func parseConfig(conf *Configuration) {
@@ -54,6 +59,29 @@ func parseConfig(conf *Configuration) {
     }
 }
 
+// Build Info Stuff
+type BuildInfo struct {
+    Patterns map[string] *regexp.Regexp
+    Matches  map[string] string
+}
+
+func initBuildInfo(build *BuildInfo) {
+    build.Patterns = make(map[string] *regexp.Regexp)
+    build.Matches  = make(map[string] string)
+
+    build.Patterns["uuid"], _      = regexp.Compile(`.*Build Result UUID: (.*)`)
+    build.Patterns["requestor"], _ = regexp.Compile(`.*Requestor ID: (.*)`)
+    build.Patterns["enghost"], _   = regexp.Compile(`.*Build Engine Host: (.*)`)
+    build.Patterns["engid"], _     = regexp.Compile(`.*Build Engine ID: (.*)`)
+    build.Patterns["builddef"], _  = regexp.Compile(`.*Build Definition: (.*)`)
+    build.Patterns["projects"], _  = regexp.Compile(`.*Project Names: (.*)`)
+
+    for k, _ := range build.Patterns {
+        build.Matches[k] = ""
+    }
+}
+
+// IRC Bot Helper
 func WriteToIrcBot(message string, conf Configuration) {
     strEcho := message + "\n"
     servAddr := conf.Botaddress + ":" + conf.Botport
@@ -79,6 +107,83 @@ func WriteToIrcBot(message string, conf Configuration) {
     }
 }
 
+// State Machine Stuff
+const (
+        Init = iota
+        Start_Summ
+        End_Summ
+        Main_Log
+        End_Log
+        Exit
+)
+
+func Init_State(line string, conf Configuration, buildinfo BuildInfo) int {
+    if strings.Contains(line, "-- START BUILD INFO --") { return Start_Summ } else { return Init }
+}
+
+func Start_Summ_State(line string, conf Configuration, buildinfo BuildInfo) int {
+
+    var res[]string
+
+    for k, v := range buildinfo.Patterns {
+        res = v.FindStringSubmatch(line)
+        if res != nil { buildinfo.Matches[k] = res[1] }
+    }
+
+    var allMatched bool = true
+    for _, v := range buildinfo.Matches {
+        if v == "" { allMatched = false }
+    }
+
+    if allMatched {
+        formatBuildInfo(buildinfo, conf)
+        return End_Summ
+    }
+
+    return Start_Summ
+}
+
+func formatBuildInfo(buildinfo BuildInfo, conf Configuration) {
+    var info = buildinfo.Matches
+    var builtLine string = fmt.Sprintf("START:   Requestor: %v, Project: %v, Def: %v", info["requestor"], info["projects"], info["builddef"])
+    WriteToIrcBot(builtLine, conf)
+}
+
+func End_Summ_State(line string, conf Configuration, buildinfo BuildInfo) int {
+    if strings.Contains(line, "-- END BUILD INFO --") { return Main_Log } else { return End_Summ }
+}
+
+func Main_Log_State(line string, conf Configuration, buildinfo BuildInfo) int {
+    var builtLine string
+    var info = buildinfo.Matches
+    // Use HasPrefix instead of Contains in case of other exec'd ant jobs (like RTC tagging)
+    if strings.HasPrefix(line, "BUILD SUCCESSFUL") {
+        builtLine = fmt.Sprintf("SUCCESS: Requestor: %v, Project: %v, Def: %v", info["requestor"], info["projects"], info["builddef"])
+        WriteToIrcBot(builtLine,conf)
+        builtLine = formatBuildLogUrl(conf, buildinfo)
+        WriteToIrcBot(builtLine, conf)
+        return End_Log
+    }
+    if strings.HasPrefix(line, "BUILD FAILED") {
+        builtLine = fmt.Sprintf("FAILED:  Requestor: %v, Project: %v, Def: %v", info["requestor"], info["projects"], info["builddef"])
+        WriteToIrcBot(builtLine, conf)
+        builtLine = formatBuildLogUrl(conf, buildinfo)
+        WriteToIrcBot(builtLine, conf)
+        return End_Log
+    }
+    return Main_Log
+}
+
+func formatBuildLogUrl(conf Configuration, build BuildInfo) string {
+    var builtLine string = fmt.Sprintf("%v/resource/itemOid/com.ibm.team.build.BuildResult/%v",conf.RTCBaseURL,build.Matches["uuid"])
+    return builtLine
+}
+
+func End_Log_State(line string, conf Configuration, buildinfo BuildInfo) int {
+    log.Println("Logfile finished")
+    return Exit
+}
+
 func main() {
     var conf Configuration
 
@@ -93,6 +198,14 @@ func main() {
     flag.Parse()
 
 //    fmt.Printf("%+v\n", conf)
+    states := map[int] func(string, Configuration, BuildInfo) int{
+        Init: Init_State,
+        Start_Summ: Start_Summ_State,
+        End_Summ: End_Summ_State,
+        Main_Log: Main_Log_State,
+        End_Log: End_Log_State,
+    }
+
 
     watcher, err := fsnotify.NewWatcher()
     if err != nil {
@@ -125,43 +238,13 @@ func main() {
                             return
                         }
 
-                        WriteToIrcBot("Work started - build: " + buildid , conf)
+                        var build BuildInfo
+                        initBuildInfo(&build)
 
-                        uuid_re, _ := regexp.Compile(`.*Build Result UUID: (.*)`)
-                        requestor_re, _ := regexp.Compile(`.*Requestor ID: (.*)`)
-                        enghost_re, _ := regexp.Compile(`.*Build Engine Host: (.*)`)
-                        engid_re, _ := regexp.Compile(`.*Build Engine ID: (.*)`)
-                        builddef_re, _ := regexp.Compile(`.*Build Definition: (.*)`)
-                        projects_re, _ := regexp.Compile(`.*Project Names: (.*)`)
-
-                        uuid, requestor, enghost, engid, builddef, projects := "","","","","",""
-
-                        summary_block := false
+                        logState := Init
                         for line := range t.Lines {
-                            if strings.Contains(line.Text, "-- START BUILD INFO --") { summary_block = true  }
-
-                            if summary_block == true {
-                                res := uuid_re.FindStringSubmatch(line.Text)
-                                if res != nil { uuid = res[1] }
-                                res = requestor_re.FindStringSubmatch(line.Text)
-                                if res != nil { requestor = res[1] }
-                                res = enghost_re.FindStringSubmatch(line.Text)
-                                if res != nil { enghost = res[1] }
-                                res = engid_re.FindStringSubmatch(line.Text)
-                                if res != nil { engid = res[1] }
-                                res = builddef_re.FindStringSubmatch(line.Text)
-                                if res != nil { builddef = res[1] }
-                                res = projects_re.FindStringSubmatch(line.Text)
-                                if res != nil { projects = res[1] }
-
-                                log.Println(buildid + ": " + line.Text)
-                            }
-                            if uuid != "" && requestor != "" && enghost != "" && engid != "" && builddef != "" && projects != "" && summary_block == true {
-                                WriteToIrcBot("UUID: " + uuid + ",    Req: " + requestor + ",     Eng: " + enghost + ":" + engid + ",     Def: " + builddef + ",    Project: " + projects, conf)
-                                summary_block = false
-                            }
-
-                            if strings.Contains(line.Text, "-- END BUILD INFO --")   { summary_block = false }
+                            logState = states[logState](line.Text, conf, build)
+                            if (logState == Exit) { return }
                         }
                     }()
                 }
