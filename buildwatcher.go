@@ -81,10 +81,10 @@ func main() {
 						var build BuildInfo
 						initBuildInfo(&build)
 
-						logState := Init
+						logState := initLog
 						for line := range t.Lines {
 							logState = states[logState](line.Text, conf, build)
-							if logState == Exit {
+							if logState == exitLog {
 								return
 							}
 						}
