@@ -21,6 +21,7 @@ func initBuildInfo(build *BuildInfo) {
 	build.Patterns["engid"], _ = regexp.Compile(`.*Build Engine ID: (.*)`)
 	build.Patterns["builddef"], _ = regexp.Compile(`.*Build Definition: (.*)`)
 	build.Patterns["projects"], _ = regexp.Compile(`.*Project Names: (.*)`)
+	build.Patterns["buildlabel"], _ = regexp.Compile(`.*Build Label: (.*)`)
 
 	for k, _ := range build.Patterns {
 		build.Matches[k] = ""
@@ -29,7 +30,7 @@ func initBuildInfo(build *BuildInfo) {
 
 func formatBuildInfo(buildStatus string, buildinfo BuildInfo) string {
 	var info = buildinfo.Matches
-	var builtLine string = fmt.Sprintf("%-10v: Requestor: %v, Project: %v, Def: %v", buildStatus, info["requestor"], info["projects"], info["builddef"])
+	var builtLine string = fmt.Sprintf("%v: %-10v: Requestor: %v, Project: %v, Def: %v", info["buildlabel"], buildStatus, info["requestor"], info["projects"], info["builddef"])
 	return builtLine
 }
 
