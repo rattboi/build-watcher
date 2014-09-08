@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+    "strings"
 	"regexp"
 )
 
@@ -36,15 +37,17 @@ func getBuildInfo(buildStatus string, buildInfo BuildInfo) string {
             var res []string
 			var envRE, _ = regexp.Compile(`Deploy to (.*) - DEPLOY ONE PROJECT.*`)
 			res = envRE.FindStringSubmatch(info["builddef"])
+            var parsedProjects = strings.Replace(info["projects"], "EIT_1World_", "", -1)
+            parsedProjects = strings.Replace(parsedProjects, "EIT_1WORLD_", "", -1)
 			if res != nil {
-				return fmt.Sprintf("%v: %-10v: Requestor: %v, Project: %v, Deploy Env: %v", info["buildlabel"], buildStatus, info["requestor"], info["projects"], res[1])
+				return fmt.Sprintf("%v: %-9v: Req: %v, Prj: %v, DepEnv: %v", info["buildlabel"], buildStatus, info["requestor"], info["projects"], res[1])
 			} else {
-				return fmt.Sprintf("%v: %-10v: Requestor: %v, Project: %v, Def: %v", info["buildlabel"], buildStatus, info["requestor"], info["projects"], info["builddef"])
+				return fmt.Sprintf("%v: %-9v: Req: %v, Prj: %v, Def: %v", info["buildlabel"], buildStatus, info["requestor"], info["projects"], info["builddef"])
 			}
 		}
     default:
         {
-            return fmt.Sprintf("%v: %-10v: Requestor: %v", info["buildlabel"], buildStatus, info["requestor"])
+            return fmt.Sprintf("%v: %-9v: Req: %v", info["buildlabel"], buildStatus, info["requestor"])
         }
 	}
 }
