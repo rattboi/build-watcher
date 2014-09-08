@@ -32,7 +32,7 @@ func formatBuildInfo(buildStatus string, buildInfo BuildInfo) string {
 	var res []string
 	var info = buildInfo.Matches
 	var builtLine string = fmt.Sprintf("%v: %-10v: Requestor: %v, Project: %v, Def: %v", info["buildlabel"], buildStatus, info["requestor"], info["projects"], info["builddef"])
-	var envRE, _ = regexp.Compile(`Deploy to (.*) - DEPLOY ONE PROJECT (linux)`)
+	var envRE, _ = regexp.Compile(`Deploy to (.*) - DEPLOY ONE PROJECT.*`)
 	res = envRE.FindStringSubmatch(info["builddef"])
 	if res != nil {
 		builtLine = builtLine + ", Env: " + res[1]

@@ -95,7 +95,6 @@ func main() {
 									WriteToIrcBot(formatBuildInfo("START", build), conf)
 								case successLog:
 									WriteToIrcBot(formatBuildInfo("SUCCESS", build), conf)
-									WriteToIrcBot(formatBuildLogUrl(build, conf), conf)
 								case failLog:
 									WriteToIrcBot(formatBuildInfo("FAIL", build), conf)
 									WriteToIrcBot(formatBuildLogUrl(build, conf), conf)
