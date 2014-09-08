@@ -92,13 +92,14 @@ func main() {
 								log.Printf("State Transition: %v -> %v\n", logState, nextLogState)
 								switch nextLogState {
 								case mainLog:
-									WriteToIrcBot(formatBuildInfo("START", build), conf)
+									WriteToIrcBot(getBuildInfo("START", build), conf)
 								case successLog:
-									WriteToIrcBot(formatBuildInfo("SUCCESS", build), conf)
+									WriteToIrcBot(getBuildInfo("SUCCESS", build), conf)
 								case failLog:
-									WriteToIrcBot(formatBuildInfo("FAIL", build), conf)
+									WriteToIrcBot(getBuildInfo("FAIL", build), conf)
 									WriteToIrcBot(formatBuildLogUrl(build, conf), conf)
 								case exitLog:
+									log.Println("Logfile finished")
 									return
 								default:
 								}

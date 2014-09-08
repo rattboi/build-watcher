@@ -28,16 +28,25 @@ func initBuildInfo(build *BuildInfo) {
 	}
 }
 
-func formatBuildInfo(buildStatus string, buildInfo BuildInfo) string {
-	var res []string
-	var info = buildInfo.Matches
-	var envRE, _ = regexp.Compile(`Deploy to (.*) - DEPLOY ONE PROJECT.*`)
-	res = envRE.FindStringSubmatch(info["builddef"])
-	if res != nil {
-        return fmt.Sprintf("%v: %-10v: Requestor: %v, Project: %v, Deploy Env: %v", info["buildlabel"], buildStatus, info["requestor"], info["projects"], res[1])
-	} else {
-        return fmt.Sprintf("%v: %-10v: Requestor: %v, Project: %v, Def: %v", info["buildlabel"], buildStatus, info["requestor"], info["projects"], info["builddef"])
-    }
+func getBuildInfo(buildStatus string, buildInfo BuildInfo) string {
+    var info = buildInfo.Matches
+	switch buildStatus {
+	case "START":
+		{
+            var res []string
+			var envRE, _ = regexp.Compile(`Deploy to (.*) - DEPLOY ONE PROJECT.*`)
+			res = envRE.FindStringSubmatch(info["builddef"])
+			if res != nil {
+				return fmt.Sprintf("%v: %-10v: Requestor: %v, Project: %v, Deploy Env: %v", info["buildlabel"], buildStatus, info["requestor"], info["projects"], res[1])
+			} else {
+				return fmt.Sprintf("%v: %-10v: Requestor: %v, Project: %v, Def: %v", info["buildlabel"], buildStatus, info["requestor"], info["projects"], info["builddef"])
+			}
+		}
+    default:
+        {
+            return fmt.Sprintf("%v: %-10v: Requestor: %v", info["buildlabel"], buildStatus, info["requestor"])
+        }
+	}
 }
 
 func formatBuildLogUrl(buildInfo BuildInfo, conf Configuration) string {

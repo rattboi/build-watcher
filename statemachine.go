@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"strings"
 )
 
@@ -107,6 +106,5 @@ func failLogState(line string, buildinfo BuildInfo) State {
 }
 
 func endLogState(line string, buildinfo BuildInfo) State {
-	log.Println("Logfile finished")
 	return exitLog
 }
