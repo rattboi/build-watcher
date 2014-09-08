@@ -40,9 +40,16 @@ func initLogState(line string, buildinfo BuildInfo) State {
 func startLogState(line string, buildinfo BuildInfo) State {
 	if strings.Contains(line, "-- START BUILD INFO --") {
 		return startSumm
-	} else {
-		return startLog
+	} else if strings.HasPrefix(line, "BUILD ") { // This is a deploy not using StreamBuild, or failed very early. Just allow closing the tail log
+		line = strings.TrimPrefix(line, "BUILD ")
+		if strings.Contains(line, "SUCCESS") {
+			return endLog
+		}
+		if strings.Contains(line, "FAIL") {
+			return endLog
+		}
 	}
+	return startLog
 }
 
 func startSummState(line string, buildinfo BuildInfo) State {
