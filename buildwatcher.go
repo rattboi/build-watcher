@@ -47,6 +47,8 @@ func isLogFile(filename string, conf Configuration) bool {
 }
 
 func main() {
+    log.Println("Starting build-watcher")
+
 	var conf Configuration
 	// set some dumb defaults
 	setConfigDefaults(&conf)
