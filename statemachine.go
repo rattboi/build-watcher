@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"strings"
 )
@@ -11,33 +10,42 @@ type State int
 
 const (
 	initLog State = iota
+	startLog
 	startSumm
 	endSumm
 	mainLog
+	successLog
+	failLog
 	endLog
 	exitLog
 )
 
-func initStates() map[State]func(string, Configuration, BuildInfo) State {
-	return map[State]func(string, Configuration, BuildInfo) State{
-		initLog:   initLogState,
-		startSumm: startSummState,
-		endSumm:   endSummState,
-		mainLog:   mainLogState,
-		endLog:    endLogState,
+func initStates() map[State]func(string, BuildInfo) State {
+	return map[State]func(string, BuildInfo) State{
+		initLog:    initLogState,
+		startLog:   startLogState,
+		startSumm:  startSummState,
+		endSumm:    endSummState,
+		mainLog:    mainLogState,
+		successLog: successLogState,
+		failLog:    failLogState,
+		endLog:     endLogState,
 	}
 }
 
-func initLogState(line string, conf Configuration, buildinfo BuildInfo) State {
+func initLogState(line string, buildinfo BuildInfo) State {
+	return startLog
+}
+
+func startLogState(line string, buildinfo BuildInfo) State {
 	if strings.Contains(line, "-- START BUILD INFO --") {
 		return startSumm
 	} else {
-		return initLog
+		return startLog
 	}
 }
 
-func startSummState(line string, conf Configuration, buildinfo BuildInfo) State {
-
+func startSummState(line string, buildinfo BuildInfo) State {
 	var res []string
 
 	for k, v := range buildinfo.Patterns {
@@ -55,20 +63,13 @@ func startSummState(line string, conf Configuration, buildinfo BuildInfo) State 
 	}
 
 	if allMatched {
-		formatBuildInfo(buildinfo, conf)
 		return endSumm
+	} else {
+		return startSumm
 	}
-
-	return startSumm
 }
 
-func formatBuildInfo(buildinfo BuildInfo, conf Configuration) {
-	var info = buildinfo.Matches
-	var builtLine string = fmt.Sprintf("START:   Requestor: %v, Project: %v, Def: %v", info["requestor"], info["projects"], info["builddef"])
-	WriteToIrcBot(builtLine, conf)
-}
-
-func endSummState(line string, conf Configuration, buildinfo BuildInfo) State {
+func endSummState(line string, buildinfo BuildInfo) State {
 	if strings.Contains(line, "-- END BUILD INFO --") {
 		return mainLog
 	} else {
@@ -76,27 +77,29 @@ func endSummState(line string, conf Configuration, buildinfo BuildInfo) State {
 	}
 }
 
-func mainLogState(line string, conf Configuration, buildinfo BuildInfo) State {
-	var builtLine string
-	var info = buildinfo.Matches
+func mainLogState(line string, buildinfo BuildInfo) State {
 	// Use HasPrefix instead of Contains in case of other exec'd ant jobs (like RTC tagging)
 	if strings.HasPrefix(line, "BUILD ") {
 		line = strings.TrimPrefix(line, "BUILD ")
-		builtLine = fmt.Sprintf("%10v: Requestor: %v, Project: %v, Def: %v", line, info["requestor"], info["projects"], info["builddef"])
-		WriteToIrcBot(builtLine, conf)
-		builtLine = formatBuildLogUrl(conf, buildinfo)
-		WriteToIrcBot(builtLine, conf)
-		return endLog
+		if strings.Contains(line, "SUCCESS") {
+			return successLog
+		}
+		if strings.Contains(line, "FAIL") {
+			return failLog
+		}
 	}
 	return mainLog
 }
 
-func formatBuildLogUrl(conf Configuration, build BuildInfo) string {
-	var builtLine string = fmt.Sprintf("%v/resource/itemOid/com.ibm.team.build.BuildResult/%v", conf.RTCBaseURL, build.Matches["uuid"])
-	return builtLine
+func successLogState(line string, buildinfo BuildInfo) State {
+	return endLog
 }
 
-func endLogState(line string, conf Configuration, buildinfo BuildInfo) State {
+func failLogState(line string, buildinfo BuildInfo) State {
+	return endLog
+}
+
+func endLogState(line string, buildinfo BuildInfo) State {
 	log.Println("Logfile finished")
 	return exitLog
 }

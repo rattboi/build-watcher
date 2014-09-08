@@ -70,7 +70,7 @@ func main() {
 			select {
 			case ev := <-watcher.Event:
 				// See if a new file is created that matches our pattern
-				if isLogFile(ev.Name, conf) && ev.IsCreate() {
+				if ev.IsCreate() && isLogFile(ev.Name, conf) {
 					// 'fork' a new tail watcher for this build file
 					go func() {
 						t, err := tail.TailFile(ev.Name, tail.Config{Follow: true})
@@ -82,10 +82,27 @@ func main() {
 						initBuildInfo(&build)
 
 						logState := initLog
+
 						for line := range t.Lines {
-							logState = states[logState](line.Text, conf, build)
-							if logState == exitLog {
-								return
+							nextLogState := states[logState](line.Text, build)
+
+							if nextLogState != logState {
+								log.Printf("State Transition: %v -> %v\n", logState, nextLogState)
+								switch nextLogState {
+								case mainLog:
+									WriteToIrcBot(formatBuildInfo("START", build), conf)
+								case successLog:
+									WriteToIrcBot(formatBuildInfo("SUCCESS", build), conf)
+									WriteToIrcBot(formatBuildLogUrl(build, conf), conf)
+								case failLog:
+									WriteToIrcBot(formatBuildInfo("FAIL", build), conf)
+									WriteToIrcBot(formatBuildLogUrl(build, conf), conf)
+								case exitLog:
+									return
+								default:
+								}
+
+								logState = nextLogState
 							}
 						}
 					}()

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"regexp"
 )
 
@@ -24,4 +25,15 @@ func initBuildInfo(build *BuildInfo) {
 	for k, _ := range build.Patterns {
 		build.Matches[k] = ""
 	}
+}
+
+func formatBuildInfo(buildStatus string, buildinfo BuildInfo) string {
+	var info = buildinfo.Matches
+	var builtLine string = fmt.Sprintf("%-10v: Requestor: %v, Project: %v, Def: %v", buildStatus, info["requestor"], info["projects"], info["builddef"])
+	return builtLine
+}
+
+func formatBuildLogUrl(build BuildInfo, conf Configuration) string {
+	var builtLine string = fmt.Sprintf("%v/resource/itemOid/com.ibm.team.build.BuildResult/%v", conf.RTCBaseURL, build.Matches["uuid"])
+	return builtLine
 }
