@@ -40,7 +40,7 @@ func getBuildInfo(buildStatus string, buildInfo BuildInfo) string {
 			var parsedProjects = strings.Replace(info["projects"], "EIT_1World_", "", -1)
 			parsedProjects = strings.Replace(parsedProjects, "EIT_1WORLD_", "", -1)
 			if res != nil {
-				return fmt.Sprintf("%v: %-9v: Req: %v, DepEnv: %-12v, Prj: %v", info["buildlabel"], setIrcMode(ircBold)+setIrcMode(ircUnderline)+buildStatus+setIrcMode(ircCReset), info["requestor"], res[1], parsedProjects)
+				return fmt.Sprintf("%v: %-9v: Req: %v, DepEnv: %-12v, Prj: %v", info["buildlabel"], setIrcCode(ircBold,ircUnderline) + buildStatus + setIrcCode(ircCReset), info["requestor"], res[1], parsedProjects)
 			} else {
 				return fmt.Sprintf("%v: %-9v: Req: %v, Def: %v, Prj: %v", info["buildlabel"], buildStatus, info["requestor"], info["builddef"], parsedProjects)
 			}
