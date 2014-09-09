@@ -57,13 +57,8 @@ func WriteToIrcBot(message string, conf Configuration) {
 	}
 }
 
-func setIrcCode(code ...interface{}) string {
-    var codes []byte
-    for i := range code {
-        b := code[i].(byte)
-        codes = append(codes, byte(b))
-    }
-	return string(codes)
+func setIrcMode(mode int) string {
+	return string(byte(mode))
 }
 
 func setIrcColor(fgColor int, bgColor int) string {
