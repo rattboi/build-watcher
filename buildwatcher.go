@@ -2,38 +2,11 @@ package main
 
 import (
 	"log"
-	"net"
 	"regexp"
 
 	"github.com/ActiveState/tail"
 	"github.com/howeyc/fsnotify"
 )
-
-// IRC Bot Helper
-func WriteToIrcBot(message string, conf Configuration) {
-	strEcho := message + "\n"
-	servAddr := conf.Botaddress + ":" + conf.Botport
-	tcpAddr, err := net.ResolveTCPAddr("tcp", servAddr)
-
-	if err != nil {
-		log.Println("ResolveTCPAddr failed:", err.Error())
-	}
-
-	conn, err := net.DialTCP("tcp", nil, tcpAddr)
-	defer conn.Close()
-
-	if err != nil {
-		log.Println("Dial failed:", err.Error())
-		return
-	}
-
-	_, err = conn.Write([]byte(strEcho))
-
-	if err != nil {
-		log.Println("Write to server failed:", err.Error())
-		return
-	}
-}
 
 func isLogFile(filename string, conf Configuration) bool {
 	log.Println("New File -> ", filename)
@@ -89,7 +62,7 @@ func main() {
 							nextLogState := states[logState](line.Text, build)
 
 							if nextLogState != logState {
-								log.Printf("State Transition: %v -> %v\n", logState, nextLogState)
+								// log.Printf("State Transition: %v -> %v\n", logState, nextLogState)
 								switch nextLogState {
 								case mainLog:
 									WriteToIrcBot(getBuildInfo("START", build), conf)
