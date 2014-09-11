@@ -11,7 +11,6 @@ const (
 	initLog State = iota
 	startLog
 	startSumm
-	endSumm
 	mainLog
 	successLog
 	failLog
@@ -24,7 +23,6 @@ func initStates() map[State]func(string, BuildInfo) State {
 		initLog:    initLogState,
 		startLog:   startLogState,
 		startSumm:  startSummState,
-		endSumm:    endSummState,
 		mainLog:    mainLogState,
 		successLog: successLogState,
 		failLog:    failLogState,
@@ -61,25 +59,10 @@ func startSummState(line string, buildinfo BuildInfo) State {
 		}
 	}
 
-	var allMatched bool = true
-	for _, v := range buildinfo.Matches {
-		if v == "" {
-			allMatched = false
-		}
-	}
-
-	if allMatched {
-		return endSumm
-	} else {
-		return startSumm
-	}
-}
-
-func endSummState(line string, buildinfo BuildInfo) State {
 	if strings.Contains(line, "-- END BUILD INFO --") {
 		return mainLog
 	} else {
-		return endSumm
+		return startSumm
 	}
 }
 

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"hash/fnv"
 	"log"
 	"net"
+	"strconv"
 )
 
 const (
@@ -15,7 +17,7 @@ const (
 )
 
 const (
-	cWhite = '0' + iota
+	cWhite = iota
 	cBlack
 	cBlue
 	cGreen
@@ -63,6 +65,15 @@ func setIrcMode(mode int) string {
 
 func setIrcColor(fgColor int, bgColor int) string {
 	var colorBytes []byte
-	colorBytes = append(colorBytes, byte(ircColor), byte(fgColor), byte(','), byte(bgColor))
+	colorBytes = append(colorBytes, byte(ircColor))
+	colorBytes = append(colorBytes, []byte(strconv.Itoa(fgColor))...)
+	colorBytes = append(colorBytes, byte(','))
+	colorBytes = append(colorBytes, []byte(strconv.Itoa(bgColor))...)
 	return string(colorBytes)
+}
+
+func hashedColor(msg string) string {
+	h := fnv.New32a()
+	h.Write([]byte(msg))
+	return setIrcColor(int((h.Sum32()%16)), int(((h.Sum32()+8)%16))) + msg + setIrcMode(ircCReset)
 }

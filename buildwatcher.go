@@ -69,8 +69,8 @@ func main() {
 								case successLog:
 									WriteToIrcBot(getBuildInfo("SUCCESS", build), conf)
 								case failLog:
-									WriteToIrcBot(getBuildInfo("FAIL", build), conf)
-									WriteToIrcBot(formatBuildLogUrl(build, conf), conf)
+									var fail = getBuildInfo("FAIL", build) + formatBuildLogUrl(build, conf)
+									WriteToIrcBot(fail, conf)
 								case exitLog:
 									log.Println("Logfile finished")
 									return
