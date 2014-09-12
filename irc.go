@@ -8,17 +8,21 @@ import (
 	"strings"
 )
 
-const (
-	ircBold      = 2
-	ircColor     = 3
-	ircItalic    = 19
-	ircCReset    = 15
-	ircCReverse  = 22
-	ircUnderline = 31
-)
+type IrcMode int
 
 const (
-	cWhite = iota
+	ircBold      IrcMode = 2
+	ircColor     IrcMode = 3
+	ircItalic    IrcMode = 19
+	ircCReset    IrcMode = 15
+	ircCReverse  IrcMode = 22
+	ircUnderline IrcMode = 31
+)
+
+type Color int
+
+const (
+	cWhite Color = iota
 	cBlack
 	cBlue
 	cGreen
@@ -36,7 +40,7 @@ const (
 	cSilver
 )
 
-var colorMatch = map[int]int{
+var colorMatch = map[Color]Color{
 	cWhite:  cBlack,
 	cBlack:  cWhite,
 	cBlue:   cWhite,
@@ -81,22 +85,22 @@ func WriteToIrcBot(message string, conf Configuration) {
 	}
 }
 
-func setIrcMode(mode int) string {
+func setIrcMode(mode IrcMode) string {
 	return string(byte(mode))
 }
 
-func setIrcColor(fgColor int, bgColor int) string {
-	return setIrcMode(ircColor) + strconv.Itoa(fgColor) + "," + strconv.Itoa(bgColor)
+func setIrcColor(fgColor Color, bgColor Color) string {
+	return setIrcMode(ircColor) + strconv.Itoa(int(fgColor)) + "," + strconv.Itoa(int(bgColor))
 }
 
-func colorMsg(msg string, fgColor int, bgColor int) string {
+func colorMsg(msg string, fgColor Color, bgColor Color) string {
 	return setIrcColor(fgColor, bgColor) + msg + setIrcMode(ircCReset)
 }
 
 func hashedColor(msg string) string {
 	h := fnv.New32a()
 	h.Write([]byte(msg))
-	bgColor := int(h.Sum32() % 16)
+    bgColor := interface{}(int(h.Sum32() % 16)).(Color)
 	return colorMsg(msg, colorMatch[bgColor], bgColor)
 }
 
