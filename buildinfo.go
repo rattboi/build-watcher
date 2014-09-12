@@ -40,14 +40,22 @@ func getBuildInfo(buildStatus string, buildInfo BuildInfo) string {
 			var parsedProjects = strings.Replace(info["projects"], "EIT_1World_", "", -1)
 			parsedProjects = strings.Replace(parsedProjects, "EIT_1WORLD_", "", -1)
 			if res != nil {
-				return fmt.Sprintf("%v: %-7v : %-12v : %-12v : %v ", hashedColor(info["buildlabel"]), buildStatus, info["requestor"], res[1], parsedProjects)
+				return fmt.Sprintf("%v: %v : %v : %v : %v ", hashedColor(info["buildlabel"]), pad(buildStatus, 7), pad(info["requestor"],14), pad(res[1], 12), parsedProjects)
 			} else {
-				return fmt.Sprintf("%v: %-7v : %-12v : %v : %v ", hashedColor(info["buildlabel"]), buildStatus, info["requestor"], info["builddef"], parsedProjects)
+				return fmt.Sprintf("%v: %v : %v : %v : %v ", hashedColor(info["buildlabel"]), pad(buildStatus, 7), pad(info["requestor"],14), info["builddef"], parsedProjects)
 			}
 		}
+    case "FAIL":
+        {
+			return fmt.Sprintf("%v: %v : %v : ", hashedColor(info["buildlabel"]), colorMsg(pad(buildStatus, 7), cBlack, cRed), pad(info["requestor"], 14))
+        }
+    case "SUCCESS":
+        {
+			return fmt.Sprintf("%v: %v : %v : ", hashedColor(info["buildlabel"]), colorMsg(pad(buildStatus, 7), cWhite, cGreen), pad(info["requestor"], 14))
+        }
 	default:
 		{
-			return fmt.Sprintf("%v: %-7v : %-12v : ", hashedColor(info["buildlabel"]), buildStatus, info["requestor"])
+			return fmt.Sprintf("%v: %v : %v : ", hashedColor(info["buildlabel"]), pad(buildStatus, 7), pad(info["requestor"], 12))
 		}
 	}
 }

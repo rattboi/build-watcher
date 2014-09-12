@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -23,15 +24,36 @@ const (
 	cGreen
 	cRed
 	cBrown
+	cPurple
 	cOrange
 	cYellow
 	cLime
 	cTeal
+	cCyan
 	cRoyal
 	cPink
 	cGrey
 	cSilver
 )
+
+var colorMatch = map[int]int{
+	cWhite:  cBlack,
+	cBlack:  cWhite,
+	cBlue:   cWhite,
+	cGreen:  cBlack,
+	cRed:    cWhite,
+	cBrown:  cWhite,
+	cPurple: cWhite,
+	cOrange: cBlack,
+	cYellow: cBlack,
+	cLime:   cBlack,
+	cTeal:   cBlack,
+	cCyan:   cBlack,
+	cRoyal:  cWhite,
+	cPink:   cBlack,
+	cGrey:   cBlack,
+	cSilver: cBlack,
+}
 
 // IRC Bot Helper
 func WriteToIrcBot(message string, conf Configuration) {
@@ -64,16 +86,24 @@ func setIrcMode(mode int) string {
 }
 
 func setIrcColor(fgColor int, bgColor int) string {
-	var colorBytes []byte
-	colorBytes = append(colorBytes, byte(ircColor))
-	colorBytes = append(colorBytes, []byte(strconv.Itoa(fgColor))...)
-	colorBytes = append(colorBytes, byte(','))
-	colorBytes = append(colorBytes, []byte(strconv.Itoa(bgColor))...)
-	return string(colorBytes)
+	return setIrcMode(ircColor) + strconv.Itoa(fgColor) + "," + strconv.Itoa(bgColor)
+}
+
+func colorMsg(msg string, fgColor int, bgColor int) string {
+	return setIrcColor(fgColor, bgColor) + msg + setIrcMode(ircCReset)
 }
 
 func hashedColor(msg string) string {
 	h := fnv.New32a()
 	h.Write([]byte(msg))
-	return setIrcColor(int((h.Sum32()%16)), int(((h.Sum32()+8)%16))) + msg + setIrcMode(ircCReset)
+	bgColor := int(h.Sum32() % 16)
+	return colorMsg(msg, colorMatch[bgColor], bgColor)
+}
+
+func pad(msg string, length int) string {
+    if (len(msg) > length) {
+        return msg
+    } else {
+        return msg + strings.Repeat(" ", length-len(msg))
+    }
 }
