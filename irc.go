@@ -100,14 +100,22 @@ func colorMsg(msg string, fgColor Color, bgColor Color) string {
 func hashedColor(msg string) string {
 	h := fnv.New32a()
 	h.Write([]byte(msg))
-    bgColor := interface{}(int(h.Sum32() % 16)).(Color)
+	hash := int(h.Sum32() % 16)
+	var hIface interface{} = hash
+	color, ok := hIface.(int)
+	if !ok {
+		log.Println("Couldn't type assert from int to Color")
+		return msg
+	}
+
+	bgColor := Color(color)
 	return colorMsg(msg, colorMatch[bgColor], bgColor)
 }
 
 func pad(msg string, length int) string {
-    if (len(msg) > length) {
-        return msg
-    } else {
-        return msg + strings.Repeat(" ", length-len(msg))
-    }
+	if len(msg) > length {
+		return msg
+	} else {
+		return msg + strings.Repeat(" ", length-len(msg))
+	}
 }

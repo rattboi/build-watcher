@@ -71,6 +71,8 @@ func main() {
 								case failLog:
 									var fail = getBuildInfo("FAIL", build) + formatBuildLogUrl(build, conf)
 									WriteToIrcBot(fail, conf)
+								case abandonLog:
+									WriteToIrcBot(getBuildInfo("ABANDON", build), conf)
 								case exitLog:
 									log.Println("Logfile finished")
 									return

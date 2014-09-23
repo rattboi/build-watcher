@@ -14,6 +14,7 @@ const (
 	mainLog
 	successLog
 	failLog
+	abandonLog
 	endLog
 	exitLog
 )
@@ -26,6 +27,7 @@ func initStates() map[State]func(string, BuildInfo) State {
 		mainLog:    mainLogState,
 		successLog: successLogState,
 		failLog:    failLogState,
+		abandonLog: abandonLogState,
 		endLog:     endLogState,
 	}
 }
@@ -77,6 +79,10 @@ func mainLogState(line string, buildinfo BuildInfo) State {
 			return failLog
 		}
 	}
+	if strings.Contains(line, "The build was interrupted.") {
+		return abandonLog
+	}
+
 	return mainLog
 }
 
@@ -85,6 +91,10 @@ func successLogState(line string, buildinfo BuildInfo) State {
 }
 
 func failLogState(line string, buildinfo BuildInfo) State {
+	return endLog
+}
+
+func abandonLogState(line string, buildinfo BuildInfo) State {
 	return endLog
 }
 
