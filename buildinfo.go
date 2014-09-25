@@ -43,6 +43,10 @@ func summarizeProject(projects string) string {
 	return parsedProjects
 }
 
+func buildInfoString(label string, status string, req string, env string, proj string, fgColor Color, bgColor Color) string {
+	return fmt.Sprintf("%v: %v : %v : %v : %v ", hashedColor(label), colorMsg(pad(status, 7), fgColor, bgColor), pad(req, 14), pad(env, 14), summarizeProject(proj))
+}
+
 func getBuildInfo(buildStatus string, buildInfo BuildInfo) string {
 	var info = buildInfo.Matches
 	switch buildStatus {
@@ -54,28 +58,28 @@ func getBuildInfo(buildStatus string, buildInfo BuildInfo) string {
 			res1 = batchEnvRE.FindStringSubmatch(info["builddef"])
 			res2 = selfSEnvRE.FindStringSubmatch(info["builddef"])
 			if res1 != nil {
-				return fmt.Sprintf("%v: %v : %v : %v : %v ", hashedColor(info["buildlabel"]), pad(buildStatus, 7), pad(info["requestor"], 14), pad(res1[1], 14), summarizeProject(info["projects"]))
+				return buildInfoString(info["buildlabel"], buildStatus, info["requestor"], res1[1], info["projects"], cWhite, cBlack)
 			} else if res2 != nil {
-				return fmt.Sprintf("%v: %v : %v : %v : %v ", hashedColor(info["buildlabel"]), pad(buildStatus, 7), pad(info["requestor"], 14), pad(res2[1], 14), summarizeProject(res2[2]))
+				return buildInfoString(info["buildlabel"], buildStatus, info["requestor"], "SS - "+res2[1], res2[2], cWhite, cBlack)
 			} else {
-				return fmt.Sprintf("%v: %v : %v : %v : %v ", hashedColor(info["buildlabel"]), pad(buildStatus, 7), pad(info["requestor"], 14), info["builddef"], summarizeProject(info["projects"]))
+				return buildInfoString(info["buildlabel"], buildStatus, info["requestor"], info["builddef"], info["projects"], cWhite, cBlack)
 			}
 		}
 	case "FAIL":
 		{
-			return fmt.Sprintf("%v: %v : %v : ", hashedColor(info["buildlabel"]), colorMsg(pad(buildStatus, 7), cBlack, cRed), pad(info["requestor"], 14))
+			return buildInfoString(info["buildlabel"], buildStatus, info["requestor"], "", "", cBlack, cRed)
 		}
 	case "SUCCESS":
 		{
-			return fmt.Sprintf("%v: %v : %v : ", hashedColor(info["buildlabel"]), colorMsg(pad(buildStatus, 7), cBlack, cGreen), pad(info["requestor"], 14))
+			return buildInfoString(info["buildlabel"], buildStatus, info["requestor"], "", "", cBlack, cGreen)
 		}
 	case "ABANDON":
 		{
-			return fmt.Sprintf("%v: %v : %v : ", hashedColor(info["buildlabel"]), colorMsg(pad(buildStatus, 7), cWhite, cBrown), pad(info["requestor"], 14))
+			return buildInfoString(info["buildlabel"], buildStatus, info["requestor"], "", "", cWhite, cBrown)
 		}
 	default:
 		{
-			return fmt.Sprintf("%v: %v : %v : ", hashedColor(info["buildlabel"]), pad(buildStatus, 7), pad(info["requestor"], 14))
+			return buildInfoString(info["buildlabel"], buildStatus, info["requestor"], "", "", cWhite, cBlack)
 		}
 	}
 }
