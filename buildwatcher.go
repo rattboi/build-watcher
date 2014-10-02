@@ -62,17 +62,23 @@ func main() {
 							nextLogState := states[logState](line.Text, build)
 
 							if nextLogState != logState {
-								// log.Printf("State Transition: %v -> %v\n", logState, nextLogState)
+								// log.Printf("%v : Trans: %v -> %v\n", ev.Name, logState, nextLogState)
 								switch nextLogState {
 								case mainLog:
 									WriteToIrcBot(getBuildInfo("START", build), conf)
 								case successLog:
 									WriteToIrcBot(getBuildInfo("SUCCESS", build), conf)
+									log.Println("Logfile finished")
+									return
 								case failLog:
 									var fail = getBuildInfo("FAIL", build) + formatBuildLogUrl(build, conf)
 									WriteToIrcBot(fail, conf)
+									log.Println("Logfile finished")
+									return
 								case abandonLog:
 									WriteToIrcBot(getBuildInfo("ABANDON", build), conf)
+									log.Println("Logfile finished")
+									return
 								case exitLog:
 									log.Println("Logfile finished")
 									return

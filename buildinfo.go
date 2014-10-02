@@ -54,7 +54,7 @@ func getBuildInfo(buildStatus string, buildInfo BuildInfo) string {
 		{
 			var res1, res2 []string
 			var batchEnvRE = regexp.MustCompile(`Deploy to (.*) - DEPLOY ONE PROJECT.*`)
-			var selfSEnvRE = regexp.MustCompile(`Dev DEPLOY (.*) - (.*)`)
+			var selfSEnvRE = regexp.MustCompile(`Dev.* DEPLOY (.*?) - (.*)`)
 			res1 = batchEnvRE.FindStringSubmatch(info["builddef"])
 			res2 = selfSEnvRE.FindStringSubmatch(info["builddef"])
 			if res1 != nil {
