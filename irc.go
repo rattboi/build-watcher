@@ -70,12 +70,12 @@ func WriteToIrcBot(message string, conf Configuration) {
 	}
 
 	conn, err := net.DialTCP("tcp", nil, tcpAddr)
-	defer conn.Close()
 
 	if err != nil {
 		log.Println("Dial failed:", err.Error())
 		return
 	}
+	defer conn.Close()
 
 	_, err = conn.Write([]byte(strEcho))
 
