@@ -6,4 +6,5 @@
     "Watchdir": "/tmp"
     "Filepattern": ".*build-(.*)\.log"
     "RTCBaseURL": "http://baseurl:port/jazz"
+    "IRCChannel": "#channel"
 }

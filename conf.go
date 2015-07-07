@@ -16,6 +16,7 @@ type Configuration struct {
 	Watchdir    string
 	Filepattern string
 	RTCBaseURL  string
+	IRCChannel  string
 }
 
 func setConfigDefaults(conf *Configuration) {
@@ -26,6 +27,7 @@ func setConfigDefaults(conf *Configuration) {
 	conf.Watchdir = "/tmp"
 	conf.Filepattern = `.*build-(.*)\.log`
 	conf.RTCBaseURL = "http://baseurl:port/jazz"
+	conf.IRCChannel = "#channel"
 }
 
 func setupFlags(conf *Configuration) {
@@ -36,6 +38,7 @@ func setupFlags(conf *Configuration) {
 	flag.StringVar(&conf.Watchdir, "Watchdir", conf.Watchdir, "directory to watch for build files")
 	flag.StringVar(&conf.Filepattern, "Filepattern", conf.Filepattern, "regular expression pattern for files to watch")
 	flag.StringVar(&conf.RTCBaseURL, "RTCBaseURL", conf.RTCBaseURL, "base part of RTC server for build log linking")
+	flag.StringVar(&conf.IRCChannel, "IRCChannel", conf.IRCChannel, "IRC channel to log to")
 	flag.Parse()
 }
 

@@ -61,7 +61,7 @@ var colorMatch = map[Color]Color{
 
 // IRC Bot Helper
 func WriteToIrcBot(message string, conf Configuration) {
-	strEcho := message + "\n"
+	strEcho := conf.IRCChannel + "|" + message + "\n"
 	servAddr := conf.Botaddress + ":" + conf.Botport
 	tcpAddr, err := net.ResolveTCPAddr("tcp", servAddr)
 
