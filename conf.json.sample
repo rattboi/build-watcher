@@ -1,8 +1,6 @@
 {
-    "Botname": "deploybot",
     "Botaddress": "localhost",
     "Botport": "12345",
-    "Authpass": "password",
     "Watchdir": "/tmp"
     "Filepattern": ".*build-(.*)\.log"
     "RTCBaseURL": "http://baseurl:port/jazz"

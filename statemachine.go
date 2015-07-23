@@ -19,7 +19,9 @@ const (
 	exitLog
 )
 
-func initStates() map[State]func(string, BuildInfo) State {
+type StateMapper map[State]func(string, BuildInfo) State
+
+func initStates() StateMapper {
 	return map[State]func(string, BuildInfo) State{
 		initLog:    initLogState,
 		startLog:   startLogState,

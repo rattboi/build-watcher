@@ -12,7 +12,8 @@ type BuildInfo struct {
 	Matches  map[string]string
 }
 
-func initBuildInfo(build *BuildInfo) {
+func initBuildInfo() BuildInfo {
+	var build BuildInfo
 	build.Patterns = make(map[string]*regexp.Regexp)
 	build.Matches = make(map[string]string)
 
@@ -27,6 +28,8 @@ func initBuildInfo(build *BuildInfo) {
 	for k, _ := range build.Patterns {
 		build.Matches[k] = ""
 	}
+
+	return build
 }
 
 func summarizeProject(projects string) string {

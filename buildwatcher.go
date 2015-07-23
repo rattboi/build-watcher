@@ -5,103 +5,102 @@ import (
 	"regexp"
 
 	"github.com/ActiveState/tail"
-	"github.com/howeyc/fsnotify"
+	"gopkg.in/fsnotify.v0"
 )
-
-func isLogFile(filename string, conf Configuration) bool {
-	log.Println("New File -> ", filename)
-	re, _ := regexp.Compile(conf.Filepattern)
-	res := re.FindStringSubmatch(filename)
-	if res == nil {
-		log.Println("No match to " + conf.Filepattern)
-		return false
-	}
-	return true
-}
 
 func main() {
 	log.Println("Starting build-watcher")
 
-	var conf Configuration
-	// set some dumb defaults
-	setConfigDefaults(&conf)
-	// get settings from config file if it exists and override defaults
-	parseConfig(&conf)
-	// parse out any flags and override defaults/config
-	setupFlags(&conf)
+	conf := handleConfig()
 
-	states := initStates()
-
+	log.Println("Creating fsnotify watcher")
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer watcher.Close()
 
 	done := make(chan bool)
 
 	// Process events
-	go func() {
-		for {
-			select {
-			case ev := <-watcher.Event:
-				// See if a new file is created that matches our pattern
-				if ev.IsCreate() && isLogFile(ev.Name, conf) {
-					// 'fork' a new tail watcher for this build file
-					go func() {
-						t, err := tail.TailFile(ev.Name, tail.Config{Follow: true})
-						if err != nil {
-							return
-						}
+	log.Println("Starting to process events")
+	go processEvents(watcher, initStates(), conf)
 
-						var build BuildInfo
-						initBuildInfo(&build)
-
-						logState := initLog
-
-						for line := range t.Lines {
-							nextLogState := states[logState](line.Text, build)
-
-							if nextLogState != logState {
-								// log.Printf("%v : Trans: %v -> %v\n", ev.Name, logState, nextLogState)
-								switch nextLogState {
-								case mainLog:
-									WriteToIrcBot(getBuildInfo("START", build), conf)
-								case successLog:
-									WriteToIrcBot(getBuildInfo("SUCCESS", build), conf)
-									log.Println("Logfile finished")
-									return
-								case failLog:
-									var fail = getBuildInfo("FAIL", build) + formatBuildLogUrl(build, conf)
-									WriteToIrcBot(fail, conf)
-									log.Println("Logfile finished")
-									return
-								case abandonLog:
-									WriteToIrcBot(getBuildInfo("ABANDON", build), conf)
-									log.Println("Logfile finished")
-									return
-								case exitLog:
-									log.Println("Logfile finished")
-									return
-								default:
-								}
-
-								logState = nextLogState
-							}
-						}
-					}()
-				}
-			case err := <-watcher.Error:
-				log.Println("error:", err)
-			}
-		}
-	}()
-
+	log.Println("Adding watchdir: ", conf.Watchdir)
 	err = watcher.Watch(conf.Watchdir)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	<-done
+}
 
-	watcher.Close()
+func processEvents(watcher *fsnotify.Watcher, states StateMapper, conf Configuration) {
+	for {
+		select {
+		case ev := <-watcher.Event:
+			// See if a new file is created that matches our pattern
+			if ev.IsCreate() && isLogFile(ev.Name, conf.Filepattern) {
+				// 'fork' a new tail watcher for this build file
+				go newTailWatcher(ev.Name, states, conf)
+			}
+		case err := <-watcher.Error:
+			log.Println("error:", err)
+		}
+	}
+}
+
+func isLogFile(fileName string, filePattern string) bool {
+	log.Println("New File -> ", fileName)
+	re, _ := regexp.Compile(filePattern)
+	res := re.FindStringSubmatch(fileName)
+	if res == nil {
+		log.Println("No match to " + filePattern)
+		return false
+	}
+	return true
+}
+
+func newTailWatcher(filename string, states StateMapper, conf Configuration) {
+	t, err := tail.TailFile(filename, tail.Config{Follow: true})
+	if err != nil {
+		return
+	}
+
+	build := initBuildInfo()
+	logState := initLog
+
+	for line := range t.Lines {
+		nextLogState := states[logState](line.Text, build)
+
+		if nextLogState != logState {
+			// log.Printf("%v : Trans: %v -> %v\n", ev.Name, logState, nextLogState)
+			handleState(nextLogState, build, conf)
+			logState = nextLogState
+		}
+	}
+}
+
+func handleState(state State, build BuildInfo, conf Configuration) {
+	switch state {
+	case mainLog:
+		WriteToIrcBot(getBuildInfo("START", build), conf)
+	case successLog:
+		WriteToIrcBot(getBuildInfo("SUCCESS", build), conf)
+		log.Println("Logfile finished")
+		return
+	case failLog:
+		var fail = getBuildInfo("FAIL", build) + formatBuildLogUrl(build, conf)
+		WriteToIrcBot(fail, conf)
+		log.Println("Logfile finished")
+		return
+	case abandonLog:
+		WriteToIrcBot(getBuildInfo("ABANDON", build), conf)
+		log.Println("Logfile finished")
+		return
+	case exitLog:
+		log.Println("Logfile finished")
+		return
+	default:
+	}
 }
