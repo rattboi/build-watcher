@@ -61,8 +61,8 @@ func isLogFile(fileName string, filePattern string) bool {
 	return true
 }
 
-func newTailWatcher(filename string, states StateMapper, conf Configuration) {
-	t, err := tail.TailFile(filename, tail.Config{Follow: true})
+func newTailWatcher(fileName string, states StateMapper, conf Configuration) {
+	t, err := tail.TailFile(fileName, tail.Config{Follow: true})
 	if err != nil {
 		return
 	}
@@ -75,32 +75,38 @@ func newTailWatcher(filename string, states StateMapper, conf Configuration) {
 
 		if nextLogState != logState {
 			// log.Printf("%v : Trans: %v -> %v\n", ev.Name, logState, nextLogState)
-			handleState(nextLogState, build, conf)
+			finished := handleState(nextLogState, build, fileName, conf)
+			if finished {
+				return
+			}
 			logState = nextLogState
 		}
 	}
 }
 
-func handleState(state State, build BuildInfo, conf Configuration) {
+// returns true if at a "finished" state
+func handleState(state State, build BuildInfo, fileName string, conf Configuration) bool {
 	switch state {
 	case mainLog:
 		WriteToIrcBot(getBuildInfo("START", build), conf)
+		return false
 	case successLog:
 		WriteToIrcBot(getBuildInfo("SUCCESS", build), conf)
-		log.Println("Logfile finished")
-		return
+		log.Printf("Logfile finished - SUCCESS - %v", fileName)
+		return true
 	case failLog:
 		var fail = getBuildInfo("FAIL", build) + formatBuildLogUrl(build, conf)
 		WriteToIrcBot(fail, conf)
-		log.Println("Logfile finished")
-		return
+		log.Printf("Logfile finished - FAIL - %v", fileName)
+		return true
 	case abandonLog:
 		WriteToIrcBot(getBuildInfo("ABANDON", build), conf)
-		log.Println("Logfile finished")
-		return
+		log.Printf("Logfile finished - ABANDON - %v", fileName)
+		return true
 	case exitLog:
-		log.Println("Logfile finished")
-		return
+		log.Printf("Logfile finished - EXIT - %v", fileName)
+		return true
 	default:
+		return false
 	}
 }
