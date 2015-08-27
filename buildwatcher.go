@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"regexp"
 
@@ -62,10 +63,12 @@ func isLogFile(fileName string, filePattern string) bool {
 }
 
 func newTailWatcher(fileName string, states StateMapper, conf Configuration) {
-	t, err := tail.TailFile(fileName, tail.Config{Follow: true})
+	t, err := tail.TailFile(fileName, tail.Config{Follow: true, Poll: true})
 	if err != nil {
+		fmt.Println(err)
 		return
 	}
+	defer endTailWatcher(t)
 
 	build := initBuildInfo()
 	logState := initLog
@@ -74,13 +77,20 @@ func newTailWatcher(fileName string, states StateMapper, conf Configuration) {
 		nextLogState := states[logState](line.Text, build)
 
 		if nextLogState != logState {
-			// log.Printf("%v : Trans: %v -> %v\n", ev.Name, logState, nextLogState)
+			//	log.Printf("%v : Trans: %v -> %v\n", ev.Name, logState, nextLogState)
 			finished := handleState(nextLogState, build, fileName, conf)
 			if finished {
 				return
 			}
 			logState = nextLogState
 		}
+	}
+}
+
+func endTailWatcher(t *tail.Tail) {
+	sErr := t.Stop()
+	if sErr != nil {
+		fmt.Println(sErr)
 	}
 }
 
