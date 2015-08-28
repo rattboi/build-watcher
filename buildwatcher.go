@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
-	"log"
-	"regexp"
-
-	"github.com/ActiveState/tail"
 	"gopkg.in/fsnotify.v0"
+	"io"
+	"log"
+	"os"
+	"regexp"
+	"time"
 )
 
 func main() {
@@ -63,34 +65,39 @@ func isLogFile(fileName string, filePattern string) bool {
 }
 
 func newTailWatcher(fileName string, states StateMapper, conf Configuration) {
-	t, err := tail.TailFile(fileName, tail.Config{Follow: true, Poll: true})
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer endTailWatcher(t)
 
 	build := initBuildInfo()
 	logState := initLog
 
-	for line := range t.Lines {
-		nextLogState := states[logState](line.Text, build)
+	var in io.Reader
+	fin, err := os.Open(fileName)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Can't open file: "+err.Error())
+	}
+	defer fin.Close()
+	fin.Seek(0, os.SEEK_END)
+	in = fin
+	buf := bufio.NewReader(in)
 
-		if nextLogState != logState {
-			//	log.Printf("%v : Trans: %v -> %v\n", ev.Name, logState, nextLogState)
-			finished := handleState(nextLogState, build, fileName, conf)
-			if finished {
+	for {
+		b, _, err := buf.ReadLine()
+		if len(b) > 0 {
+			nextLogState := states[logState](string(b), build)
+
+			if nextLogState != logState {
+				finished := handleState(nextLogState, build, fileName, conf)
+				if finished {
+					return
+				}
+				logState = nextLogState
+			}
+		}
+		if err != nil {
+			if err != io.EOF {
 				return
 			}
-			logState = nextLogState
+			time.Sleep(50 * time.Millisecond)
 		}
-	}
-}
-
-func endTailWatcher(t *tail.Tail) {
-	sErr := t.Stop()
-	if sErr != nil {
-		fmt.Println(sErr)
 	}
 }
 
