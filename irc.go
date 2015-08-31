@@ -97,9 +97,13 @@ func colorMsg(msg string, fgColor Color, bgColor Color) string {
 	return setIrcColor(fgColor, bgColor) + msg + setIrcMode(ircCReset)
 }
 
-func hashedColor(msg string) string {
+func colorMatchedMsg(msg string, bgColor Color) string {
+	return colorMsg(msg, colorMatch[bgColor], bgColor)
+}
+
+func hashedColor(msg string, hash string) string {
 	h := fnv.New32a()
-	h.Write([]byte(msg))
+	h.Write([]byte(hash))
 	bgColor := Color(h.Sum32() % 16)
 	return colorMsg(msg, colorMatch[bgColor], bgColor)
 }

@@ -6,10 +6,13 @@ import (
 	"strings"
 )
 
+var ColorToUse Color = cWhite
+
 // Build Info Stuff
 type BuildInfo struct {
-	Patterns map[string]*regexp.Regexp
-	Matches  map[string]string
+	Patterns   map[string]*regexp.Regexp
+	Matches    map[string]string
+	labelColor Color
 }
 
 func initBuildInfo() BuildInfo {
@@ -29,6 +32,9 @@ func initBuildInfo() BuildInfo {
 		build.Matches[k] = ""
 	}
 
+	build.labelColor = ColorToUse
+	ColorToUse = (ColorToUse + 1) % 16
+
 	return build
 }
 
@@ -46,8 +52,8 @@ func summarizeProject(projects string) string {
 	return parsedProjects
 }
 
-func buildInfoString(label string, status string, req string, env string, proj string, fgColor Color, bgColor Color) string {
-	return fmt.Sprintf("%v: %v : %v : %v : %v ", hashedColor(label), colorMsg(pad(status, 7), fgColor, bgColor), pad(req, 14), pad(env, 14), summarizeProject(proj))
+func buildInfoString(info BuildInfo, status string, env string, proj string, fgColor Color, bgColor Color) string {
+	return fmt.Sprintf("%v: %v : %v : %v : %v ", colorMatchedMsg(info.Matches["buildlabel"], info.labelColor), colorMsg(pad(status, 7), fgColor, bgColor), pad(info.Matches["requestor"], 14), pad(env, 14), summarizeProject(proj))
 }
 
 func getBuildInfo(buildStatus string, buildInfo BuildInfo) string {
@@ -61,28 +67,28 @@ func getBuildInfo(buildStatus string, buildInfo BuildInfo) string {
 			res1 = batchEnvRE.FindStringSubmatch(info["builddef"])
 			res2 = selfSEnvRE.FindStringSubmatch(info["builddef"])
 			if res1 != nil {
-				return buildInfoString(info["buildlabel"], buildStatus, info["requestor"], res1[1], info["projects"], cWhite, cBlack)
+				return buildInfoString(buildInfo, buildStatus, res1[1], info["projects"], cWhite, cBlack)
 			} else if res2 != nil {
-				return buildInfoString(info["buildlabel"], buildStatus, info["requestor"], "SS - "+res2[1], res2[2], cWhite, cBlack)
+				return buildInfoString(buildInfo, buildStatus, "SS - "+res2[1], res2[2], cWhite, cBlack)
 			} else {
-				return buildInfoString(info["buildlabel"], buildStatus, info["requestor"], info["builddef"], info["projects"], cWhite, cBlack)
+				return buildInfoString(buildInfo, buildStatus, info["builddef"], info["projects"], cWhite, cBlack)
 			}
 		}
 	case "FAIL":
 		{
-			return buildInfoString(info["buildlabel"], buildStatus, info["requestor"], "", "", cBlack, cRed)
+			return buildInfoString(buildInfo, buildStatus, "", "", cBlack, cRed)
 		}
 	case "SUCCESS":
 		{
-			return buildInfoString(info["buildlabel"], buildStatus, info["requestor"], "", "", cBlack, cGreen)
+			return buildInfoString(buildInfo, buildStatus, "", "", cBlack, cGreen)
 		}
 	case "ABANDON":
 		{
-			return buildInfoString(info["buildlabel"], buildStatus, info["requestor"], "", "", cWhite, cBrown)
+			return buildInfoString(buildInfo, buildStatus, "", "", cWhite, cBrown)
 		}
 	default:
 		{
-			return buildInfoString(info["buildlabel"], buildStatus, info["requestor"], "", "", cWhite, cBlack)
+			return buildInfoString(buildInfo, buildStatus, "", "", cWhite, cBlack)
 		}
 	}
 }
