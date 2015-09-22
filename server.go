@@ -1,6 +1,7 @@
 package main
 
 import (
+	"./pubsub"
 	"log"
 )
 
@@ -11,7 +12,14 @@ func main() {
 
 	done := make(chan bool)
 
+	redisClient := pubsub.NewRedisClient("localhost")
 	// Subscribe to redis event queue
+	redisClient.Subscribe("queue")
+
+	for {
+		message := redisClient.Receive()
+
+	}
 
 	<-done
 }
