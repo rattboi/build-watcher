@@ -66,7 +66,7 @@ func buildInfoString(info BuildInfo, status string, env string, proj string, fgC
 	fieldWidth[1] = maxLength(info.Matches["requestor"], fieldWidth[1])
 	fieldWidth[2] = maxLength(env, fieldWidth[2])
 
-	return fmt.Sprintf("%v: %v : %v : %v : %v ", colorMatchedMsg(info.Matches["buildlabel"], info.labelColor), colorMsg(pad(status, fieldWidth[0]), fgColor, bgColor), pad(info.Matches["requestor"], fieldWidth[2]), pad(env, fieldWidth[3]), summarizeProject(proj))
+	return fmt.Sprintf("%v: %v : %v : %v : %v", colorMatchedMsg(info.Matches["buildlabel"], info.labelColor), colorMsg(pad(status, fieldWidth[0]), fgColor, bgColor), pad(info.Matches["requestor"], fieldWidth[2]), pad(env, fieldWidth[3]), summarizeProject(proj))
 }
 
 func getBuildInfo(buildStatus string, buildInfo BuildInfo) string {
