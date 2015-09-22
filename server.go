@@ -12,28 +12,35 @@ func main() {
 
 	done := make(chan bool)
 
-	redisClient := pubsub.NewRedisClient("localhost")
+	hostClient := pubsub.NewRedisClient("localhost")
 	// Subscribe to redis event queue
-	redisClient.Subscribe("queue")
+	hostClient.Subscribe("hosts")
 
 	for {
-		message := redisClient.Receive()
-
+		host := hostClient.Receive()
+		go processHostSubscription(host, conf)
 	}
 
 	<-done
 }
 
-func newTailWatcher(states StateMapper, conf Configuration) {
+func processHostSubscription(host pubsub.Message, conf Configuration) {
 
+	watcherClient := pubsub.NewRedisClient("localhost")
+	watcherClient.Subscribe(host.Data)
+
+	states := initStates()
 	build := initBuildInfo()
 	logState := initLog
 
 	for {
-		nextLogState := states[logState](string(b), build)
+		logMessage := watcherClient.Receive()
+		logLine := logMessage.Data
+
+		nextLogState := states[logState](logLine, build)
 
 		if nextLogState != logState {
-			finished := handleState(nextLogState, build, fileName, conf)
+			finished := handleState(nextLogState, build, conf)
 			if finished {
 				return
 			}
@@ -43,26 +50,22 @@ func newTailWatcher(states StateMapper, conf Configuration) {
 }
 
 // returns true if at a "finished" state
-func handleState(state State, build BuildInfo, fileName string, conf Configuration) bool {
+func handleState(state State, build BuildInfo, conf Configuration) bool {
 	switch state {
 	case mainLog:
 		WriteToIrcBot(getBuildInfo("START", build), conf)
 		return false
 	case successLog:
 		WriteToIrcBot(getBuildInfo("SUCCESS", build), conf)
-		log.Printf("Logfile finished - SUCCESS - %v", fileName)
 		return true
 	case failLog:
 		var fail = getBuildInfo("FAIL", build) + formatBuildLogUrl(build, conf)
 		WriteToIrcBot(fail, conf)
-		log.Printf("Logfile finished - FAIL - %v", fileName)
 		return true
 	case abandonLog:
 		WriteToIrcBot(getBuildInfo("ABANDON", build), conf)
-		log.Printf("Logfile finished - ABANDON - %v", fileName)
 		return true
 	case exitLog:
-		log.Printf("Logfile finished - EXIT - %v", fileName)
 		return true
 	default:
 		return false
