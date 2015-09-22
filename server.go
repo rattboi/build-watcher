@@ -1,102 +1,35 @@
 package main
 
 import (
-	"bufio"
-	"fmt"
-	"gopkg.in/fsnotify.v0"
-	"io"
 	"log"
-	"os"
-	"regexp"
-	"time"
 )
 
 func main() {
-	log.Println("Starting build-watcher")
+	log.Println("Starting build-watcher server")
 
 	conf := handleConfig()
 
-	log.Println("Creating fsnotify watcher")
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer watcher.Close()
-
 	done := make(chan bool)
 
-	// Process events
-	log.Println("Starting to process events")
-	go processEvents(watcher, initStates(), conf)
-
-	log.Println("Adding watchdir: ", conf.Watchdir)
-	err = watcher.Watch(conf.Watchdir)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// Subscribe to redis event queue
 
 	<-done
 }
 
-func processEvents(watcher *fsnotify.Watcher, states StateMapper, conf Configuration) {
-	for {
-		select {
-		case ev := <-watcher.Event:
-			// See if a new file is created that matches our pattern
-			if ev.IsCreate() && isLogFile(ev.Name, conf.Filepattern) {
-				// 'fork' a new tail watcher for this build file
-				go newTailWatcher(ev.Name, states, conf)
-			}
-		case err := <-watcher.Error:
-			log.Println("error:", err)
-		}
-	}
-}
-
-func isLogFile(fileName string, filePattern string) bool {
-	log.Println("New File -> ", fileName)
-	re, _ := regexp.Compile(filePattern)
-	res := re.FindStringSubmatch(fileName)
-	if res == nil {
-		log.Println("No match to " + filePattern)
-		return false
-	}
-	return true
-}
-
-func newTailWatcher(fileName string, states StateMapper, conf Configuration) {
+func newTailWatcher(states StateMapper, conf Configuration) {
 
 	build := initBuildInfo()
 	logState := initLog
 
-	var in io.Reader
-	fin, err := os.Open(fileName)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Can't open file: "+err.Error())
-	}
-	defer fin.Close()
-	fin.Seek(0, os.SEEK_END)
-	in = fin
-	buf := bufio.NewReader(in)
-
 	for {
-		b, _, err := buf.ReadLine()
-		if len(b) > 0 {
-			nextLogState := states[logState](string(b), build)
+		nextLogState := states[logState](string(b), build)
 
-			if nextLogState != logState {
-				finished := handleState(nextLogState, build, fileName, conf)
-				if finished {
-					return
-				}
-				logState = nextLogState
-			}
-		}
-		if err != nil {
-			if err != io.EOF {
+		if nextLogState != logState {
+			finished := handleState(nextLogState, build, fileName, conf)
+			if finished {
 				return
 			}
-			time.Sleep(50 * time.Millisecond)
+			logState = nextLogState
 		}
 	}
 }
