@@ -7,6 +7,7 @@ import (
 )
 
 var ColorToUse Color = cWhite
+var fieldWidth = []int{7, 14, 14}
 
 // Build Info Stuff
 type BuildInfo struct {
@@ -52,8 +53,20 @@ func summarizeProject(projects string) string {
 	return parsedProjects
 }
 
+func maxLength(s1 string, fLength int) int {
+	if len(s1) > fLength {
+		return len(s1)
+	} else {
+		return fLength
+	}
+}
+
 func buildInfoString(info BuildInfo, status string, env string, proj string, fgColor Color, bgColor Color) string {
-	return fmt.Sprintf("%v: %v : %v : %v : %v ", colorMatchedMsg(info.Matches["buildlabel"], info.labelColor), colorMsg(pad(status, 7), fgColor, bgColor), pad(info.Matches["requestor"], 14), pad(env, 14), summarizeProject(proj))
+	fieldWidth[0] = maxLength(status, fieldWidth[0])
+	fieldWidth[1] = maxLength(info.Matches["requestor"], fieldWidth[1])
+	fieldWidth[2] = maxLength(env, fieldWidth[2])
+
+	return fmt.Sprintf("%v: %v : %v : %v : %v ", colorMatchedMsg(info.Matches["buildlabel"], info.labelColor), colorMsg(pad(status, fieldWidth[0]), fgColor, bgColor), pad(info.Matches["requestor"], fieldWidth[2]), pad(env, fieldWidth[3]), summarizeProject(proj))
 }
 
 func getBuildInfo(buildStatus string, buildInfo BuildInfo) string {
@@ -61,15 +74,19 @@ func getBuildInfo(buildStatus string, buildInfo BuildInfo) string {
 	switch buildStatus {
 	case "START":
 		{
-			var res1, res2 []string
+			var res1, res2, res3 []string
 			var batchEnvRE = regexp.MustCompile(`Deploy to (.*) - DEPLOY ONE PROJECT.*`)
 			var selfSEnvRE = regexp.MustCompile(`(?i)Dev.* DEPLOY (.*?) - (.*)`)
+			var buildDefRE = regexp.MustCompile(`(?i)Dev.* SS.* Build - (.*)`)
 			res1 = batchEnvRE.FindStringSubmatch(info["builddef"])
 			res2 = selfSEnvRE.FindStringSubmatch(info["builddef"])
+			res3 = buildDefRE.FindStringSubmatch(info["builddef"])
 			if res1 != nil {
 				return buildInfoString(buildInfo, buildStatus, res1[1], info["projects"], cWhite, cBlack)
 			} else if res2 != nil {
 				return buildInfoString(buildInfo, buildStatus, "SS - "+res2[1], res2[2], cWhite, cBlack)
+			} else if res3 != nil {
+				return buildInfoString(buildInfo, buildStatus, info["enghost"], res3[1], cWhite, cBlack)
 			} else {
 				return buildInfoString(buildInfo, buildStatus, info["builddef"], info["projects"], cWhite, cBlack)
 			}
