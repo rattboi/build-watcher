@@ -1,6 +1,7 @@
 package main
 
 import (
+	"./pubsub"
 	"bufio"
 	"fmt"
 	"gopkg.in/fsnotify.v0"
@@ -27,7 +28,7 @@ func main() {
 
 	// Process events
 	log.Println("Starting to process events")
-	go processEvents(watcher, initStates(), conf)
+	go processEvents(watcher, conf)
 
 	log.Println("Adding watchdir: ", conf.Watchdir)
 	err = watcher.Watch(conf.Watchdir)
@@ -38,14 +39,14 @@ func main() {
 	<-done
 }
 
-func processEvents(watcher *fsnotify.Watcher, states StateMapper, conf Configuration) {
+func processEvents(watcher *fsnotify.Watcher, conf Configuration) {
 	for {
 		select {
 		case ev := <-watcher.Event:
 			// See if a new file is created that matches our pattern
 			if ev.IsCreate() && isLogFile(ev.Name, conf.Filepattern) {
 				// 'fork' a new tail watcher for this build file
-				go newTailWatcher(ev.Name, states, conf)
+				go newTailWatcher(ev.Name, conf)
 			}
 		case err := <-watcher.Error:
 			log.Println("error:", err)
@@ -64,10 +65,9 @@ func isLogFile(fileName string, filePattern string) bool {
 	return true
 }
 
-func newTailWatcher(fileName string, states StateMapper, conf Configuration) {
+func newTailWatcher(fileName string, conf Configuration) {
 
-	build := initBuildInfo()
-	logState := initLog
+	redisClient := pubsub.NewRedisClient("localhost")
 
 	var in io.Reader
 	fin, err := os.Open(fileName)
@@ -82,48 +82,18 @@ func newTailWatcher(fileName string, states StateMapper, conf Configuration) {
 	for {
 		b, _, err := buf.ReadLine()
 		if len(b) > 0 {
-			nextLogState := states[logState](string(b), build)
-
-			if nextLogState != logState {
-				finished := handleState(nextLogState, build, fileName, conf)
-				if finished {
-					return
-				}
-				logState = nextLogState
-			}
+			// send to redis "queue" here
+			redisClient.Publish("queue", string(b))
 		}
 		if err != nil {
 			if err != io.EOF {
 				return
 			}
+			// if the file we're watching no longer exists, we should stop watching it
+			if _, err := os.Stat(fileName); os.IsNotExist(err) {
+				return
+			}
 			time.Sleep(50 * time.Millisecond)
 		}
-	}
-}
-
-// returns true if at a "finished" state
-func handleState(state State, build BuildInfo, fileName string, conf Configuration) bool {
-	switch state {
-	case mainLog:
-		WriteToIrcBot(getBuildInfo("START", build), conf)
-		return false
-	case successLog:
-		WriteToIrcBot(getBuildInfo("SUCCESS", build), conf)
-		log.Printf("Logfile finished - SUCCESS - %v", fileName)
-		return true
-	case failLog:
-		var fail = getBuildInfo("FAIL", build) + formatBuildLogUrl(build, conf)
-		WriteToIrcBot(fail, conf)
-		log.Printf("Logfile finished - FAIL - %v", fileName)
-		return true
-	case abandonLog:
-		WriteToIrcBot(getBuildInfo("ABANDON", build), conf)
-		log.Printf("Logfile finished - ABANDON - %v", fileName)
-		return true
-	case exitLog:
-		log.Printf("Logfile finished - EXIT - %v", fileName)
-		return true
-	default:
-		return false
 	}
 }
