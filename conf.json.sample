@@ -1,8 +1,7 @@
 {
+    "Redishost": "localhost",
     "Botaddress": "localhost",
     "Botport": "12345",
-    "Watchdir": "/tmp"
-    "Filepattern": ".*build-(.*)\.log"
     "RTCBaseURL": "http://baseurl:port/jazz"
     "IRCChannel": "#channel"
 }

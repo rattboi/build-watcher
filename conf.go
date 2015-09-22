@@ -9,6 +9,7 @@ import (
 
 // Config stuff
 type Configuration struct {
+	Redishost  string
 	Botaddress string
 	Botport    string
 	RTCBaseURL string
@@ -16,6 +17,7 @@ type Configuration struct {
 }
 
 func setConfigDefaults(conf *Configuration) {
+	conf.Redishost = "localhost"
 	conf.Botaddress = "localhost"
 	conf.Botport = "12345" //default for ircflu
 	conf.RTCBaseURL = "http://baseurl:port/jazz"
@@ -23,6 +25,7 @@ func setConfigDefaults(conf *Configuration) {
 }
 
 func setupFlags(conf *Configuration) {
+	flag.StringVar(&conf.Redishost, "Redishost", conf.Redishost, "redis host")
 	flag.StringVar(&conf.Botaddress, "Botaddress", conf.Botaddress, "address where ircflu cat server is")
 	flag.StringVar(&conf.Botport, "Botport", conf.Botport, "port where ircflu cat server is")
 	flag.StringVar(&conf.RTCBaseURL, "RTCBaseURL", conf.RTCBaseURL, "base part of RTC server for build log linking")
