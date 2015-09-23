@@ -1,0 +1,5 @@
+{
+    "Redishost": "localhost",
+    "Watchdir": "/tmp",
+    "Filepattern": ".*build-(.*)\.log"
+}

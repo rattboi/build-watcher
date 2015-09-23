@@ -1,7 +1,7 @@
 package main
 
 import (
-	"./pubsub"
+	"../pubsub"
 	"log"
 )
 

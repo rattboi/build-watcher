@@ -1,3 +1,5 @@
-build-watcher
-conf.json
+client/conf.json
+server/conf.json
 nohup.out
+client/client
+server/server
