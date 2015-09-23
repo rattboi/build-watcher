@@ -1,5 +1,5 @@
 client/conf.json
 server/conf.json
 nohup.out
-client/client
-server/server
+forwarder/forwarder
+collector/collector
