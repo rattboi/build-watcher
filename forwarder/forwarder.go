@@ -17,18 +17,12 @@ func main() {
 
 	conf := handleConfig()
 
-	log.Println("Creating fsnotify watcher")
+	log.Println("Creating watcher")
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer watcher.Close()
-
-	done := make(chan bool)
-
-	// Process events
-	log.Println("Starting to process events")
-	go processEvents(watcher, conf)
 
 	log.Println("Adding watchdir: ", conf.Watchdir)
 	err = watcher.Watch(conf.Watchdir)
@@ -36,7 +30,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	<-done
+	// Process events
+	log.Println("Starting to process events")
+	processEvents(watcher, conf)
 }
 
 func processEvents(watcher *fsnotify.Watcher, conf Configuration) {

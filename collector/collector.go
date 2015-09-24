@@ -10,8 +10,6 @@ func main() {
 
 	conf := handleConfig()
 
-	done := make(chan bool)
-
 	hostClient := pubsub.NewRedisClient("localhost")
 	// Subscribe to redis event queue
 	hostClient.Subscribe("hosts")
@@ -20,8 +18,6 @@ func main() {
 		host := hostClient.Receive()
 		go processHostSubscription(host, conf)
 	}
-
-	<-done
 }
 
 func processHostSubscription(host pubsub.Message, conf Configuration) {
