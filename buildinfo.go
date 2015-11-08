@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -64,7 +65,12 @@ func (m SlackMsg) Post(WebhookURL string) error {
 }
 
 func WriteToBot(msg SlackMsg, conf Configuration) {
-
+	if msg.Channel != "" {
+		err := msg.Post(conf.WebhookUrl)
+		if err != nil {
+			log.Fatalf("Post failed: %v", err)
+		}
+	}
 }
 
 // Build Info Stuff
