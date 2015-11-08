@@ -105,19 +105,19 @@ func newTailWatcher(fileName string, states StateMapper, conf Configuration) {
 func handleState(state State, build BuildInfo, fileName string, conf Configuration) bool {
 	switch state {
 	case mainLog:
-		WriteToIrcBot(getBuildInfo("START", build), conf)
+		WriteToBot(getBuildInfo("START", build, conf), conf)
 		return false
 	case successLog:
-		WriteToIrcBot(getBuildInfo("SUCCESS", build), conf)
+		WriteToBot(getBuildInfo("SUCCESS", build, conf), conf)
 		log.Printf("Logfile finished - SUCCESS - %v", fileName)
 		return true
 	case failLog:
-		var fail = getBuildInfo("FAIL", build) + formatBuildLogUrl(build, conf)
-		WriteToIrcBot(fail, conf)
+		var fail = getBuildInfo("FAIL", build, conf) // + formatBuildLogUrl(build, conf)
+		WriteToBot(fail, conf)
 		log.Printf("Logfile finished - FAIL - %v", fileName)
 		return true
 	case abandonLog:
-		WriteToIrcBot(getBuildInfo("ABANDON", build), conf)
+		WriteToBot(getBuildInfo("ABANDON", build, conf), conf)
 		log.Printf("Logfile finished - ABANDON - %v", fileName)
 		return true
 	case exitLog:

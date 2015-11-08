@@ -1,19 +1,76 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 )
 
-var ColorToUse Color = cWhite
-var fieldWidth = []int{7, 14, 14}
+type SlackMsg struct {
+	Channel     string        `json:"channel"`
+	Username    string        `json:"username,omitempty"`
+	Text        string        `json:"text,omitempty"`
+	Attachments []Attachments `json:"attachments,omitempty"`
+}
+
+type Attachments struct {
+	Fallback   string   `json:"fallback,omitempty"`
+	Color      string   `json:"color,omitempty"`
+	Pretext    string   `json:"pretext,omitempty"`
+	AuthorName string   `json:"author_name,omitempty"`
+	AuthorLink string   `json:"author_link,omitempty"`
+	AuthorIcon string   `json:"author_icon,omitempty"`
+	Title      string   `json:"title,omitempty"`
+	TitleLink  string   `json:"title_link,omitempty"`
+	Text       string   `json:"text"`
+	Fields     []Fields `json:"fields,omitempty"`
+	ImageURL   string   `json:"image_url,omitempty"`
+	ThumbURL   string   `json:"thumb_url,omitempty"`
+}
+
+type Fields struct {
+	Title string `json:"title"`
+	Value string `json:"value"`
+	Short bool   `json:"short"`
+}
+
+func (m SlackMsg) Encode() (string, error) {
+	b, err := json.Marshal(m)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+func (m SlackMsg) Post(WebhookURL string) error {
+	encoded, err := m.Encode()
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.PostForm(WebhookURL, url.Values{"payload": {encoded}})
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return errors.New("Not OK")
+	}
+	return nil
+}
+
+func WriteToBot(msg SlackMsg, conf Configuration) {
+
+}
 
 // Build Info Stuff
 type BuildInfo struct {
-	Patterns   map[string]*regexp.Regexp
-	Matches    map[string]string
-	labelColor Color
+	Patterns map[string]*regexp.Regexp
+	Matches  map[string]string
 }
 
 func initBuildInfo() BuildInfo {
@@ -33,9 +90,6 @@ func initBuildInfo() BuildInfo {
 		build.Matches[k] = ""
 	}
 
-	build.labelColor = ColorToUse
-	ColorToUse = (ColorToUse + 1) % 16
-
 	return build
 }
 
@@ -53,23 +107,23 @@ func summarizeProject(projects string) string {
 	return parsedProjects
 }
 
-func maxLength(s1 string, fLength int) int {
-	if len(s1) > fLength {
-		return len(s1)
-	} else {
-		return fLength
+func createBuildInfoMessage(info BuildInfo, status string, env string, proj string, conf Configuration) SlackMsg {
+	formatted := fmt.Sprintf("%v\n%v : %v : %v : %v", info.Matches["buildlabel"], status, info.Matches["requestor"], env, summarizeProject(proj))
+
+	attachments := []Attachments{{
+		Text: formatted,
+	}}
+
+	msg := SlackMsg{
+		Channel:     conf.Channel,
+		Username:    conf.Username,
+		Attachments: attachments,
 	}
+
+	return msg
 }
 
-func buildInfoString(info BuildInfo, status string, env string, proj string, fgColor Color, bgColor Color) string {
-	fieldWidth[0] = maxLength(status, fieldWidth[0])
-	fieldWidth[1] = maxLength(info.Matches["requestor"], fieldWidth[1])
-	fieldWidth[2] = maxLength(env, fieldWidth[2])
-
-	return fmt.Sprintf("%v: %v : %v : %v : %v", colorMatchedMsg(info.Matches["buildlabel"], info.labelColor), colorMsg(pad(status, fieldWidth[0]), fgColor, bgColor), pad(info.Matches["requestor"], fieldWidth[2]), pad(env, fieldWidth[3]), summarizeProject(proj))
-}
-
-func getBuildInfo(buildStatus string, buildInfo BuildInfo) string {
+func getBuildInfo(buildStatus string, buildInfo BuildInfo, conf Configuration) SlackMsg {
 	var info = buildInfo.Matches
 	switch buildStatus {
 	case "START":
@@ -82,30 +136,30 @@ func getBuildInfo(buildStatus string, buildInfo BuildInfo) string {
 			res2 = selfSEnvRE.FindStringSubmatch(info["builddef"])
 			res3 = buildDefRE.FindStringSubmatch(info["builddef"])
 			if res1 != nil {
-				return buildInfoString(buildInfo, buildStatus, res1[1], info["projects"], cWhite, cBlack)
+				return createBuildInfoMessage(buildInfo, buildStatus, res1[1], info["projects"], conf)
 			} else if res2 != nil {
-				return buildInfoString(buildInfo, buildStatus, "SS - "+res2[1], res2[2], cWhite, cBlack)
+				return createBuildInfoMessage(buildInfo, buildStatus, "SS - "+res2[1], res2[2], conf)
 			} else if res3 != nil {
-				return buildInfoString(buildInfo, buildStatus, info["enghost"], res3[1], cWhite, cBlack)
+				return createBuildInfoMessage(buildInfo, buildStatus, info["enghost"], res3[1], conf)
 			} else {
-				return buildInfoString(buildInfo, buildStatus, info["builddef"], info["projects"], cWhite, cBlack)
+				return createBuildInfoMessage(buildInfo, buildStatus, info["builddef"], info["projects"], conf)
 			}
 		}
 	case "FAIL":
 		{
-			return buildInfoString(buildInfo, buildStatus, "", "", cBlack, cRed)
+			return createBuildInfoMessage(buildInfo, buildStatus, "", "", conf)
 		}
 	case "SUCCESS":
 		{
-			return buildInfoString(buildInfo, buildStatus, "", "", cBlack, cGreen)
+			return createBuildInfoMessage(buildInfo, buildStatus, "", "", conf)
 		}
 	case "ABANDON":
 		{
-			return buildInfoString(buildInfo, buildStatus, "", "", cWhite, cBrown)
+			return createBuildInfoMessage(buildInfo, buildStatus, "", "", conf)
 		}
 	default:
 		{
-			return buildInfoString(buildInfo, buildStatus, "", "", cWhite, cBlack)
+			return createBuildInfoMessage(buildInfo, buildStatus, "", "", conf)
 		}
 	}
 }
