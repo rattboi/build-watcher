@@ -1,9 +1,12 @@
 package main
 
 import (
+	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"log"
 	"net/http"
 	"net/url"
@@ -113,11 +116,52 @@ func summarizeProject(projects string) string {
 	return parsedProjects
 }
 
+func createColor(stringToHash string) string {
+	h := fnv.New32a()
+	h.Write([]byte(stringToHash))
+	var x uint32 = h.Sum32()
+	buf := make([]byte, 4)
+	binary.BigEndian.PutUint32(buf, x)
+	s := hex.EncodeToString(buf)
+	return s[:6]
+}
+
 func createBuildInfoMessage(info BuildInfo, status string, env string, proj string, conf Configuration) SlackMsg {
 	formatted := fmt.Sprintf("%v\n%v : %v : %v : %v", info.Matches["buildlabel"], status, info.Matches["requestor"], env, summarizeProject(proj))
+	newformatted := fmt.Sprintf(" %v - %v - %v", env, summarizeProject(proj), info.Matches["requestor"])
+
+	colorHash := fmt.Sprintf("%v%v%v%v", info.Matches["buildlabel"], info.Matches["requestor"], env, summarizeProject(proj))
+	color := createColor(colorHash)
+
+	var icon string
+
+	switch status {
+	case "START":
+		{
+			icon = ":white_medium_square:"
+		}
+	case "FAIL":
+		{
+			icon = ":exclamation:"
+		}
+	case "SUCCESS":
+		{
+			icon = ":white_check_mark:"
+		}
+	case "ABANDON":
+		{
+			icon = ":warning:"
+		}
+	default:
+		{
+			icon = ":question:"
+		}
+	}
 
 	attachments := []Attachments{{
-		Text: formatted,
+		Color:    color,
+		Text:     fmt.Sprintf("%v%v", icon, newformatted),
+		Fallback: formatted,
 	}}
 
 	msg := SlackMsg{
@@ -129,44 +173,27 @@ func createBuildInfoMessage(info BuildInfo, status string, env string, proj stri
 	return msg
 }
 
+func doBuildRegexes(info map[string]string) ([]string, []string, []string) {
+	var batchEnvRE = regexp.MustCompile(`Deploy to (.*) - DEPLOY ONE PROJECT.*`)
+	var selfSEnvRE = regexp.MustCompile(`(?i)Dev.* DEPLOY (.*?) - (.*)`)
+	var buildDefRE = regexp.MustCompile(`(?i)Dev.* SS.* Build - (.*)`)
+	res1 := batchEnvRE.FindStringSubmatch(info["builddef"])
+	res2 := selfSEnvRE.FindStringSubmatch(info["builddef"])
+	res3 := buildDefRE.FindStringSubmatch(info["builddef"])
+	return res1, res2, res3
+}
+
 func getBuildInfo(buildStatus string, buildInfo BuildInfo, conf Configuration) SlackMsg {
 	var info = buildInfo.Matches
-	switch buildStatus {
-	case "START":
-		{
-			var res1, res2, res3 []string
-			var batchEnvRE = regexp.MustCompile(`Deploy to (.*) - DEPLOY ONE PROJECT.*`)
-			var selfSEnvRE = regexp.MustCompile(`(?i)Dev.* DEPLOY (.*?) - (.*)`)
-			var buildDefRE = regexp.MustCompile(`(?i)Dev.* SS.* Build - (.*)`)
-			res1 = batchEnvRE.FindStringSubmatch(info["builddef"])
-			res2 = selfSEnvRE.FindStringSubmatch(info["builddef"])
-			res3 = buildDefRE.FindStringSubmatch(info["builddef"])
-			if res1 != nil {
-				return createBuildInfoMessage(buildInfo, buildStatus, res1[1], info["projects"], conf)
-			} else if res2 != nil {
-				return createBuildInfoMessage(buildInfo, buildStatus, "SS - "+res2[1], res2[2], conf)
-			} else if res3 != nil {
-				return createBuildInfoMessage(buildInfo, buildStatus, info["enghost"], res3[1], conf)
-			} else {
-				return createBuildInfoMessage(buildInfo, buildStatus, info["builddef"], info["projects"], conf)
-			}
-		}
-	case "FAIL":
-		{
-			return createBuildInfoMessage(buildInfo, buildStatus, "", "", conf)
-		}
-	case "SUCCESS":
-		{
-			return createBuildInfoMessage(buildInfo, buildStatus, "", "", conf)
-		}
-	case "ABANDON":
-		{
-			return createBuildInfoMessage(buildInfo, buildStatus, "", "", conf)
-		}
-	default:
-		{
-			return createBuildInfoMessage(buildInfo, buildStatus, "", "", conf)
-		}
+	res1, res2, res3 := doBuildRegexes(info)
+	if res1 != nil {
+		return createBuildInfoMessage(buildInfo, buildStatus, res1[1], info["projects"], conf)
+	} else if res2 != nil {
+		return createBuildInfoMessage(buildInfo, buildStatus, "SS - "+res2[1], res2[2], conf)
+	} else if res3 != nil {
+		return createBuildInfoMessage(buildInfo, buildStatus, info["enghost"], res3[1], conf)
+	} else {
+		return createBuildInfoMessage(buildInfo, buildStatus, info["builddef"], info["projects"], conf)
 	}
 }
 
