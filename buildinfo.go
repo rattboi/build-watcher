@@ -133,7 +133,10 @@ func createBuildInfoMessage(info BuildInfo, status string, env string, proj stri
 	colorHash := fmt.Sprintf("%v%v%v%v", info.Matches["buildlabel"], info.Matches["requestor"], env, summarizeProject(proj))
 	color := createColor(colorHash)
 
+	buildResultUrl := fmt.Sprintf("<%v/resource/itemOid/com.ibm.team.build.BuildResult/%v|Build Results>", conf.RTCBaseURL, info.Matches["uuid"])
+
 	var icon string
+	hasBuildResult := false
 
 	switch status {
 	case "START":
@@ -143,14 +146,17 @@ func createBuildInfoMessage(info BuildInfo, status string, env string, proj stri
 	case "FAIL":
 		{
 			icon = ":exclamation:"
+			hasBuildResult = true
 		}
 	case "SUCCESS":
 		{
 			icon = ":white_check_mark:"
+			hasBuildResult = true
 		}
 	case "ABANDON":
 		{
 			icon = ":warning:"
+			hasBuildResult = true
 		}
 	default:
 		{
@@ -158,9 +164,16 @@ func createBuildInfoMessage(info BuildInfo, status string, env string, proj stri
 		}
 	}
 
+	var attachmentText string
+
+	if hasBuildResult == true {
+		attachmentText = fmt.Sprintf("%v%v - %v", icon, newformatted, buildResultUrl)
+	} else {
+		attachmentText = fmt.Sprintf("%v%v", icon, newformatted)
+	}
 	attachments := []Attachments{{
 		Color:    color,
-		Text:     fmt.Sprintf("%v%v", icon, newformatted),
+		Text:     attachmentText,
 		Fallback: formatted,
 	}}
 
