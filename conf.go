@@ -3,9 +3,12 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 )
+
+var AppVersion string
 
 // Config stuff
 type Configuration struct {
@@ -33,7 +36,13 @@ func setupFlags(conf *Configuration) {
 	flag.StringVar(&conf.Watchdir, "Watchdir", conf.Watchdir, "directory to watch for build files")
 	flag.StringVar(&conf.Filepattern, "Filepattern", conf.Filepattern, "regular expression pattern for files to watch")
 	flag.StringVar(&conf.RTCBaseURL, "RTCBaseURL", conf.RTCBaseURL, "base part of RTC server for build log linking")
+
+	version := flag.Bool("v", false, "prints current version")
 	flag.Parse()
+	if *version {
+		fmt.Printf("Version: %s\n", AppVersion)
+		os.Exit(0)
+	}
 }
 
 func parseConfig(conf *Configuration) {

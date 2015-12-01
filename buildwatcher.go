@@ -12,9 +12,9 @@ import (
 )
 
 func main() {
-	log.Println("Starting build-watcher")
-
 	conf := handleConfig()
+
+	log.Println("Starting build-watcher")
 
 	log.Println("Creating fsnotify watcher")
 	watcher, err := fsnotify.NewWatcher()
