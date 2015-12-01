@@ -71,7 +71,7 @@ func WriteToBot(msg SlackMsg, conf Configuration) {
 	if msg.Channel != "" {
 		err := msg.Post(conf.WebhookUrl)
 		if err != nil {
-			log.Fatalf("Post failed: %v", err)
+			log.Printf("Post failed: %v", err)
 		}
 	}
 }
