@@ -8,3 +8,6 @@ First golang project
 3. Write out log events as Incoming Webhook requests to Slack
 
 This is a component of a system to forward build/deploy logs summaries to Slack
+
+![alt text](https://github.com/rattboi/build-watcher/raw/master/screenshot-build.png "Slack - Build Screenshot")
+![alt text](https://github.com/rattboi/build-watcher/raw/master/screenshot-deploy.png "Slack - Deploy Screenshot")
