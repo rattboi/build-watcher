@@ -1,8 +1,8 @@
-{
-    "Botaddress": "localhost",
-    "Botport": "12345",
-    "Watchdir": "/tmp"
-    "Filepattern": ".*build-(.*)\.log"
-    "RTCBaseURL": "http://baseurl:port/jazz"
-    "IRCChannel": "#channel"
-}
+{ 
+    "WebhookUrl": "https://hooks.slack.com/services/<your hook>", 
+    "Username": "<botname>", 
+    "Channel": "<slack channel>", 
+    "Watchdir": "<log directory", 
+    "Filepattern": ".*build-(.*).log", 
+    "RTCBaseURL": "https://rtcserver.yourdomain.com/jazz" 
+} 
