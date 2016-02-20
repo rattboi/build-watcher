@@ -15,9 +15,9 @@ This is a component of a system to forward build/deploy logs summaries to Slack.
 Build
 =====
 
-1. `go get`
-1. `go build`
-1. `./build-watcher`
+1. `go get github.com/rattboi/build-watcher`
+1. `go build github.com/rattboi/build-watcher`
+1. `$GOBIN/build-watcher`
 
 Screenshots
 ===========
