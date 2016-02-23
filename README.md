@@ -14,7 +14,7 @@ Build
 =====
 
 1. `go get github.com/rattboi/build-watcher`
-1. `go build github.com/rattboi/build-watcher`
+1. `make`
 1. configure conf.json
 1. `$GOBIN/build-watcher`
 
@@ -33,9 +33,9 @@ Screenshots
 
 Slack - Build Summary:
 
-![alt text](https://github.com/rattboi/build-watcher/raw/master/screenshot-build.png "Slack - Build Screenshot")
+![alt text](https://github.com/rattboi/build-watcher/raw/master/docs/screenshot-build.png "Slack - Build Screenshot")
 
 Slack - Deploy Summary:
 
-![alt text](https://github.com/rattboi/build-watcher/raw/master/screenshot-deploy.png "Slack - Deploy Screenshot")
+![alt text](https://github.com/rattboi/build-watcher/raw/master/docs/screenshot-deploy.png "Slack - Deploy Screenshot")
 
