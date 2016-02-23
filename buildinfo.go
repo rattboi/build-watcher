@@ -187,24 +187,30 @@ func createBuildInfoMessage(info BuildInfo, status string, env string, proj stri
 }
 
 func doBuildRegexes(info map[string]string) ([]string, []string, []string) {
-	var batchEnvRE = regexp.MustCompile(`Deploy to (.*) - DEPLOY ONE PROJECT.*`)
-	var selfSEnvRE = regexp.MustCompile(`(?i)Dev.* DEPLOY (.*?) - (.*)`)
-	var buildDefRE = regexp.MustCompile(`(?i)Dev.* SS.* Build - (.*)`)
-	res1 := batchEnvRE.FindStringSubmatch(info["builddef"])
-	res2 := selfSEnvRE.FindStringSubmatch(info["builddef"])
-	res3 := buildDefRE.FindStringSubmatch(info["builddef"])
-	return res1, res2, res3
+	var batchDeployRE = regexp.MustCompile(`Deploy to (.*) - DEPLOY ONE PROJECT.*`)
+	var ssDeployRE = regexp.MustCompile(`(?i)Dev.* DEPLOY (.*?) - (.*)`)
+	var ssBuildRE = regexp.MustCompile(`(?i)Dev.* SS.* Build - (.*)`)
+	batchDeployRes := batchDeployRE.FindStringSubmatch(info["builddef"])
+	ssDeployRes := ssDeployRE.FindStringSubmatch(info["builddef"])
+	ssBuildRes := ssBuildRE.FindStringSubmatch(info["builddef"])
+	return batchDeployRes, ssDeployRes, ssBuildRes
 }
 
 func getBuildInfo(buildStatus string, buildInfo BuildInfo, conf Configuration) SlackMsg {
 	var info = buildInfo.Matches
-	res1, res2, res3 := doBuildRegexes(info)
-	if res1 != nil {
-		return createBuildInfoMessage(buildInfo, buildStatus, res1[1], info["projects"], conf)
-	} else if res2 != nil {
-		return createBuildInfoMessage(buildInfo, buildStatus, "SS - "+res2[1], res2[2], conf)
-	} else if res3 != nil {
-		return createBuildInfoMessage(buildInfo, buildStatus, info["enghost"], res3[1], conf)
+	batchDeployRes, ssDeployRes, ssBuildRes := doBuildRegexes(info)
+	if batchDeployRes != nil {
+		return createBuildInfoMessage(buildInfo, buildStatus, batchDeployRes[1], info["projects"], conf)
+	} else if ssDeployRes != nil {
+		return createBuildInfoMessage(buildInfo, buildStatus, "SS - "+ssDeployRes[1], ssDeployRes[2], conf)
+	} else if ssBuildRes != nil {
+		var host string
+		if conf.Hostname != "" {
+			host = conf.Hostname
+		} else {
+			host = info["enghost"]
+		}
+		return createBuildInfoMessage(buildInfo, buildStatus, host, ssBuildRes[1], conf)
 	} else {
 		return createBuildInfoMessage(buildInfo, buildStatus, info["builddef"], info["projects"], conf)
 	}
