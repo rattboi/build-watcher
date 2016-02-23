@@ -33,3 +33,7 @@ test:
 # go get code.google.com/p/go.tools/cmd/vet
 vet:
 	go vet ./...
+
+dist: build conf.json
+	mkdir -p dist
+	tar cf dist/build-watcher-$(shell git describe --tags).tar build-watcher conf.json

@@ -1,3 +1,4 @@
 build-watcher
 conf.json
 nohup.out
+dist/
